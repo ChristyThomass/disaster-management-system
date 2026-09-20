@@ -4,6 +4,7 @@ bin/
 target/
 build/
 *.class
+lib/*.jar
 
 # Database runtime files
 data/
