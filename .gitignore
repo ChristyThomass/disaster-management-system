@@ -1,0 +1,19 @@
+# Compiled class files & build output
+out/
+bin/
+target/
+build/
+*.class
+
+# Database runtime files
+data/
+*.log
+
+# IDE specific files
+.idea/
+.vscode/
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+.DS_Store
