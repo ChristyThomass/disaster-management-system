@@ -182,95 +182,103 @@ public class IncidentReportFrame extends BaseFrame {
     }
 
     private void submitReport() {
-        String loc = locationField.getText().trim();
-        String desc = descriptionArea.getText().trim();
-        String type = (String) disasterType.getSelectedItem();
-
-        if (loc.isEmpty() || desc.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please fill in both the location and incident description.",
-                    "Report Incomplete",
-                    JOptionPane.WARNING_MESSAGE
-            );
-            return;
-        }
-
-        // Map to clean disasterType string
-        String simpleType = "Other";
-        if (type != null) {
-            if (type.contains("Flood") || type.contains("Reservoir")) simpleType = "Flood";
-            else if (type.contains("Landslide") || type.contains("Mudflow")) simpleType = "Landslide";
-            else if (type.contains("Thunderstorm") || type.contains("Tree")) simpleType = "Storm";
-            else if (type.contains("Collapse") || type.contains("Structural")) simpleType = "Collapse";
-            else if (type.contains("Bridge") || type.contains("Road")) simpleType = "Road Blockage";
-            else if (type.contains("Electrical")) simpleType = "Electrical Hazard";
-        }
-
-        String userId = "1";
-        if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
-            userId = disaster.service.UserSession.getCurrentUser().getUserId();
-        }
-
-        // 1. Direct Save to disaster_db via DatabaseManager
-        disaster.model.DisasterReport directReport = new disaster.model.DisasterReport(
-                "INC-" + (System.currentTimeMillis() % 100000),
-                userId,
-                simpleType,
-                9.9312,
-                76.2673,
-                "8",
-                loc + " - " + desc,
-                15
-        );
-        directReport.setStatus("Reported");
-        disaster.backend.DatabaseManager.getInstance().saveDisasterReport(directReport);
-        String reportId = directReport.getReportId();
-
-        // 2. If media was attached, save into incident_media
-        if (attachedMediaFile != null) {
-            try {
-                int incId = Integer.parseInt(reportId.replace("INC-", "").trim());
-                try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection();
-                     java.sql.PreparedStatement ps = conn.prepareStatement("INSERT INTO incident_media (incident_id, file_path) VALUES (?, ?)")) {
-                    ps.setInt(1, incId);
-                    ps.setString(2, attachedMediaFile.getAbsolutePath());
-                    ps.executeUpdate();
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // 3. Also notify backend API
         try {
-            disaster.service.ApiClient.submitDisasterReport(
+            String loc = locationField.getText().trim();
+            String desc = descriptionArea.getText().trim();
+            String type = (String) disasterType.getSelectedItem();
+
+            if (loc.isEmpty() || desc.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please fill in both the location and incident description.",
+                        "Report Incomplete",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            // Map to clean disasterType string
+            String simpleType = "Other";
+            if (type != null) {
+                if (type.contains("Flood") || type.contains("Reservoir")) simpleType = "Flood";
+                else if (type.contains("Landslide") || type.contains("Mudflow")) simpleType = "Landslide";
+                else if (type.contains("Thunderstorm") || type.contains("Tree")) simpleType = "Storm";
+                else if (type.contains("Collapse") || type.contains("Structural")) simpleType = "Collapse";
+                else if (type.contains("Bridge") || type.contains("Road")) simpleType = "Road Blockage";
+                else if (type.contains("Electrical")) simpleType = "Electrical Hazard";
+            }
+
+            String userId = "1";
+            if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
+                userId = disaster.service.UserSession.getCurrentUser().getUserId();
+            }
+
+            // 1. Save to disaster_db via IncidentDAO
+            disaster.model.DisasterReport directReport = new disaster.model.DisasterReport(
+                    "INC-" + (System.currentTimeMillis() % 100000),
                     userId,
-                    simpleType.toUpperCase(),
+                    simpleType,
                     9.9312,
                     76.2673,
-                    "HIGH",
+                    "8",
                     loc + " - " + desc,
                     15
             );
-        } catch (Exception ignored) {}
+            directReport.setStatus("Reported");
+            disaster.dao.IncidentDAO incidentDAO = new disaster.dao.IncidentDAO();
+            boolean savedToDb = incidentDAO.addIncidentReport(directReport, attachedMediaFile);
+            if (!savedToDb) {
+                disaster.backend.DatabaseManager.getInstance().saveDisasterReport(directReport);
+            }
+            String reportId = directReport.getReportId();
 
-        boolean isXampp = disaster.backend.DatabaseManager.getInstance().isUsingXamppMySQL();
-        String dbNotice = isXampp
-                ? "✓ Stored in XAMPP MySQL disaster_db (incident_reports" + (attachedMediaFile != null ? " & incident_media" : "") + ")"
-                : "ℹ Stored locally (XAMPP MySQL offline)";
+            // 2. Also notify backend API
+            try {
+                disaster.service.ApiClient.submitDisasterReport(
+                        userId,
+                        simpleType.toUpperCase(),
+                        9.9312,
+                        76.2673,
+                        "HIGH",
+                        loc + " - " + desc,
+                        15
+                );
+            } catch (Exception ignored) {}
 
-        JOptionPane.showMessageDialog(
-                this,
-                "INCIDENT REPORT LOGGED SUCCESSFULLY!\n\n"
-                        + "Report ID: #" + reportId + "\n"
-                        + "Database Status: " + dbNotice + "\n"
-                        + "Disaster Category: " + simpleType + "\n"
-                        + "Location: " + loc + "\n"
-                        + "Severity: Level 8 (High Priority)\n"
-                        + "Forwarded to: District Disaster Control Room (1077) & Kerala SDMA.",
-                "Incident Logged",
-                JOptionPane.INFORMATION_MESSAGE
-        );
+            boolean isXampp = disaster.backend.DatabaseManager.getInstance().isUsingXamppMySQL();
+            String dbNotice = isXampp
+                    ? "✓ Stored in XAMPP MySQL disaster_db (incident_reports" + (attachedMediaFile != null ? " & incident_media" : "") + ")"
+                    : "ℹ Stored locally (XAMPP MySQL offline)";
 
-        closeAndReturnToPortal();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "INCIDENT REPORT LOGGED SUCCESSFULLY!\n\n"
+                            + "Report ID: #" + reportId + "\n"
+                            + "Database Status: " + dbNotice + "\n"
+                            + "Disaster Category: " + simpleType + "\n"
+                            + "Location: " + loc + "\n"
+                            + "Severity: Level 8 (High Priority)\n"
+                            + "Forwarded to: District Disaster Control Room (1077) & Kerala SDMA.",
+                    "Incident Logged",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+
+            closeAndReturnToPortal();
+
+        } catch (Exception ex) {
+            System.err.println("❌ [IncidentReportFrame] Unhandled exception submitting disaster report!");
+            System.err.println("   Exception Type: " + ex.getClass().getName());
+            System.err.println("   Message: " + ex.getMessage());
+            ex.printStackTrace();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "An unexpected error occurred while submitting the incident report:\n\n"
+                            + ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "Unknown Error") + "\n\n"
+                            + "Please check application logs for full stack trace details.",
+                    "Disaster Report Submission Failed",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 }

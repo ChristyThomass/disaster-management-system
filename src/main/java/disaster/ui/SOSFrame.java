@@ -183,7 +183,6 @@ public class SOSFrame extends BaseFrame {
                 activeUserId = disaster.service.UserSession.getCurrentUser().getUserId();
             }
 
-            // 1. Direct persistence to XAMPP MySQL disaster_db (sos_requests, gps_locations, rescue_status)
             String sosId = "SOS-" + (System.currentTimeMillis() % 100000);
             disaster.model.SOSAlert directAlert = new disaster.model.SOSAlert(
                     sosId,
@@ -194,7 +193,11 @@ public class SOSFrame extends BaseFrame {
                     nature
             );
             System.out.println("🚨 [SOSFrame] Broadcasting SOS for User #" + activeUserId + " (" + userName + ")...");
-            boolean dbSuccess = disaster.backend.DatabaseManager.getInstance().saveSOSAlert(directAlert);
+            disaster.dao.SOSDAO sosDAO = new disaster.dao.SOSDAO();
+            boolean dbSuccess = sosDAO.saveSOSAlert(directAlert);
+            if (!dbSuccess) {
+                dbSuccess = disaster.backend.DatabaseManager.getInstance().saveSOSAlert(directAlert);
+            }
             if (directAlert.getSosId() != null) {
                 sosId = directAlert.getSosId();
             }

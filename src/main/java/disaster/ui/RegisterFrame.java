@@ -9,11 +9,13 @@ public class RegisterFrame extends BaseFrame {
     private JTextField nameField;
     private JTextField emailField;
     private JTextField phoneField;
+    private JComboBox<String> bloodGroupCombo;
+    private JTextField addressField;
     private JPasswordField passwordField;
     private JComboBox<String> roleCombo;
 
     public RegisterFrame() {
-        super("Smart Disaster Management - Registration", 520, 660);
+        super("Smart Disaster Management - Registration", 520, 780);
         setMinimumSize(new Dimension(460, 520));
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         if (DashboardFrame.getActiveInstance() != null) {
@@ -29,7 +31,7 @@ public class RegisterFrame extends BaseFrame {
 
         // Card with GridBagLayout for pixel-perfect label and field alignment
         JPanel card = createCard(12);
-        card.setPreferredSize(new Dimension(430, 580));
+        card.setPreferredSize(new Dimension(430, 740));
         card.setLayout(new GridBagLayout());
         card.setBorder(new EmptyBorder(24, 28, 24, 28));
 
@@ -106,6 +108,33 @@ public class RegisterFrame extends BaseFrame {
         phoneField = createTextField("+91 98765 43210");
         card.add(phoneField, gbc);
 
+        // Blood Group Label
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 3, 0);
+        card.add(normalLabel("Blood Group"), gbc);
+
+        // Blood Group Dropdown (Full width)
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        bloodGroupCombo = new JComboBox<>(new String[]{
+                "Select", "A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"
+        });
+        bloodGroupCombo.setFont(UITheme.NORMAL_FONT);
+        bloodGroupCombo.setBackground(Color.WHITE);
+        bloodGroupCombo.setPreferredSize(new Dimension(280, 38));
+        card.add(bloodGroupCombo, gbc);
+
+        // Residential Address Label
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 3, 0);
+        card.add(normalLabel("Residential Address"), gbc);
+
+        // Residential Address Field (Full width)
+        gbc.gridy++;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        addressField = createTextField("e.g. 123 Relief Camp Rd, Kochi");
+        card.add(addressField, gbc);
+
         // Password Label
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 3, 0);
@@ -150,6 +179,9 @@ public class RegisterFrame extends BaseFrame {
         String phone = phoneField.getText().trim();
         String password = new String(passwordField.getPassword());
         String selectedRole = (String) roleCombo.getSelectedItem();
+        String bloodGroupSel = (String) bloodGroupCombo.getSelectedItem();
+        String bloodGroup = ("Select".equals(bloodGroupSel) || bloodGroupSel == null) ? "" : bloodGroupSel;
+        String address = addressField.getText().trim();
 
         if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
             JOptionPane.showMessageDialog(
@@ -171,69 +203,62 @@ public class RegisterFrame extends BaseFrame {
             }
         }
 
-        String username = name.replaceAll("\\s+", "_").toLowerCase();
-        if (username.length() < 3) username = username + "_user";
-
         // Pre-invocation payload logs
         System.out.println("==================================================");
         System.out.println("[RegisterFrame] ACTION TRIGGER: Account Creation Form Submitted");
         System.out.println("   Input Name:        '" + name + "'");
         System.out.println("   Input Email:       '" + email + "'");
         System.out.println("   Input Phone:       '" + phone + "'");
-        System.out.println("   Derived Username:  '" + username + "'");
+        System.out.println("   Input Blood Group: '" + bloodGroup + "'");
+        System.out.println("   Input Address:     '" + address + "'");
         System.out.println("   Selected Role:     '" + sdrpRole + "'");
         System.out.println("==================================================");
 
-        // Construct User entity
-        disaster.model.User newUser = new disaster.model.User();
-        newUser.setUsername(username);
-        newUser.setPhone(phone);
-        newUser.setFullName(name);
-        newUser.setEmail(email);
-        newUser.setUserType(sdrpRole);
+        // Invoke UserDAO.registerNewUser via transactional method
+        disaster.dao.UserDAO userDAO = new disaster.dao.UserDAO();
+        int newUserId = userDAO.registerNewUserAndGetId(name, email, phone, sdrpRole, bloodGroup, address, password);
 
-        // 1. Direct persistence to XAMPP MySQL via UserDAO.addUser()
-        boolean userDaoSynced = false;
-        String daoStatus = "";
-        try {
-            disaster.dao.UserDAO userDAO = new disaster.dao.UserDAO();
-            System.out.println("[RegisterFrame] Invoking UserDAO.addUser() with verified payload...");
-            userDaoSynced = userDAO.addUser(newUser);
-            daoStatus = "\n• UserDAO: Successfully saved to disaster_db (User ID #" + newUser.getUserId() + ")";
-        } catch (java.sql.SQLException ex) {
-            System.err.println("❌ [RegisterFrame] UserDAO.addUser() FAILED with SQLException!");
-            System.err.println("   Message: " + ex.getMessage());
-            System.err.println("   Error Code: " + ex.getErrorCode());
-            System.err.println("   SQL State: " + ex.getSQLState());
-            ex.printStackTrace();
-            daoStatus = "\n• UserDAO (MySQL Error): " + ex.getMessage();
-        } catch (Exception ex) {
-            System.err.println("❌ [RegisterFrame] UserDAO.addUser() FAILED with unexpected exception!");
-            ex.printStackTrace();
-            daoStatus = "\n• UserDAO Error: " + ex.getMessage();
-        }
+        if (newUserId > 0) {
+            // Construct User entity for active session
+            disaster.model.User newUser = new disaster.model.User();
+            newUser.setUserId(String.valueOf(newUserId));
+            newUser.setUsername(email);
+            newUser.setFullName(name);
+            newUser.setEmail(email);
+            newUser.setPhone(phone);
+            newUser.setUserType(sdrpRole);
+            newUser.setBloodGroup(bloodGroup);
+            newUser.setAddress(address);
 
-        // 2. Also register with background SDRP session if server is up
-        try {
-            disaster.service.ApiClient.register(username, email, password, sdrpRole, 9.9312, 76.2673);
-        } catch (Exception ignored) {}
+            // Also register with background SDRP session if server is up
+            try {
+                disaster.service.ApiClient.register(email, email, password, sdrpRole, 9.9312, 76.2673);
+            } catch (Exception ignored) {}
 
-        disaster.service.UserSession.setCurrentUser(newUser);
+            disaster.service.UserSession.setCurrentUser(newUser);
 
-        JOptionPane.showMessageDialog(
-                this,
-                "Successfully registered",
-                "Account Created",
-                JOptionPane.INFORMATION_MESSAGE
-        );
+            JOptionPane.showMessageDialog(
+                    this,
+                    "User registration successful!",
+                    "Registration Successful",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
 
-        dispose();
-        if (DashboardFrame.getActiveInstance() != null) {
-            DashboardFrame.getActiveInstance().updateSessionUser(name);
-            DashboardFrame.getActiveInstance().toFront();
-            DashboardFrame.getActiveInstance().requestFocus();
+            dispose();
+            if (DashboardFrame.getActiveInstance() != null) {
+                DashboardFrame.getActiveInstance().updateSessionUser(name);
+                DashboardFrame.getActiveInstance().toFront();
+                DashboardFrame.getActiveInstance().requestFocus();
+            } else {
+                new DashboardFrame(name).setVisible(true);
+            }
         } else {
-            new DashboardFrame(name).setVisible(true);
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Registration failed. Could not save user record to database.",
+                    "Registration Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 }

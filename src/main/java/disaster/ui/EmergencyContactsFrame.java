@@ -206,7 +206,11 @@ public class EmergencyContactsFrame extends BaseFrame {
                 } catch (Exception ignored) {}
             }
 
-            boolean saved = disaster.backend.DatabaseManager.getInstance().saveEmergencyContact(userId, name, phone);
+            disaster.dao.EmergencyContactDAO contactDAO = new disaster.dao.EmergencyContactDAO();
+            boolean saved = contactDAO.saveContact(userId, name, phone);
+            if (!saved) {
+                saved = disaster.backend.DatabaseManager.getInstance().saveEmergencyContact(userId, name, phone);
+            }
             if (saved) {
                 model.insertRow(0, new Object[]{
                         name,
@@ -226,6 +230,13 @@ public class EmergencyContactsFrame extends BaseFrame {
                                 + "• Linked to User ID: " + userId,
                         "Contact Stored in Database",
                         JOptionPane.INFORMATION_MESSAGE
+                );
+            } else {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Failed to save contact to database. Please try again.",
+                        "Database Error",
+                        JOptionPane.ERROR_MESSAGE
                 );
             }
         }
