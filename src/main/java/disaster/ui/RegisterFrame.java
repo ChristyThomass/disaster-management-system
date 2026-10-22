@@ -12,10 +12,9 @@ public class RegisterFrame extends BaseFrame {
     private JComboBox<String> bloodGroupCombo;
     private JTextField addressField;
     private JPasswordField passwordField;
-    private JComboBox<String> roleCombo;
 
     public RegisterFrame() {
-        super("Smart Disaster Management - Registration", 520, 780);
+        super("Smart Disaster Management - Registration", 520, 720);
         setMinimumSize(new Dimension(460, 520));
         if (DashboardFrame.getActiveInstance() != null) {
             setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -33,7 +32,7 @@ public class RegisterFrame extends BaseFrame {
 
         // Card with GridBagLayout for pixel-perfect label and field alignment
         JPanel card = createCard(12);
-        card.setPreferredSize(new Dimension(430, 740));
+        card.setPreferredSize(new Dimension(430, 660));
         card.setLayout(new GridBagLayout());
         card.setBorder(new EmptyBorder(24, 28, 24, 28));
 
@@ -67,26 +66,6 @@ public class RegisterFrame extends BaseFrame {
         gbc.insets = new Insets(0, 0, 10, 0);
         nameField = createTextField("e.g. Rahul Sharma");
         card.add(nameField, gbc);
-
-        // Role Label
-        gbc.gridy++;
-        gbc.insets = new Insets(0, 0, 3, 0);
-        card.add(normalLabel("Operational Role"), gbc);
-
-        // Role Dropdown (Full width)
-        gbc.gridy++;
-        gbc.insets = new Insets(0, 0, 10, 0);
-        roleCombo = new JComboBox<>(new String[]{
-                "Citizen / Resident",
-                "Certified First Responder",
-                "Disaster Relief Volunteer",
-                "Emergency Medical Staff",
-                "Municipal Coordinator"
-        });
-        roleCombo.setFont(UITheme.NORMAL_FONT);
-        roleCombo.setBackground(Color.WHITE);
-        roleCombo.setPreferredSize(new Dimension(280, 38));
-        card.add(roleCombo, gbc);
 
         // Email Label
         gbc.gridy++;
@@ -180,7 +159,6 @@ public class RegisterFrame extends BaseFrame {
         String email = emailField.getText().trim();
         String phone = phoneField.getText().trim();
         String password = new String(passwordField.getPassword());
-        String selectedRole = (String) roleCombo.getSelectedItem();
         String bloodGroupSel = (String) bloodGroupCombo.getSelectedItem();
         String bloodGroup = ("Select".equals(bloodGroupSel) || bloodGroupSel == null) ? "" : bloodGroupSel;
         String address = addressField.getText().trim();
@@ -195,15 +173,8 @@ public class RegisterFrame extends BaseFrame {
             return;
         }
 
-        // Map role to SDRP backend role (RESPONDER, VICTIM, ADMIN)
-        String sdrpRole = "VICTIM";
-        if (selectedRole != null) {
-            if (selectedRole.contains("Responder") || selectedRole.contains("Medical") || selectedRole.contains("Volunteer")) {
-                sdrpRole = "RESPONDER";
-            } else if (selectedRole.contains("Coordinator")) {
-                sdrpRole = "ADMIN";
-            }
-        }
+        // Default role for registered users
+        String sdrpRole = "CITIZEN";
 
         // Pre-invocation payload logs
         System.out.println("==================================================");
