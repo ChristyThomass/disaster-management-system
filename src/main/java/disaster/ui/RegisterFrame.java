@@ -17,9 +17,11 @@ public class RegisterFrame extends BaseFrame {
     public RegisterFrame() {
         super("Smart Disaster Management - Registration", 520, 780);
         setMinimumSize(new Dimension(460, 520));
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         if (DashboardFrame.getActiveInstance() != null) {
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             setLocationRelativeTo(DashboardFrame.getActiveInstance());
+        } else {
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
         buildUI();
     }

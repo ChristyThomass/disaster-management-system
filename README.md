@@ -8,7 +8,7 @@ An enterprise-grade, real-time Smart Disaster Management Portal engineered with 
 
 ### 1. Citizen & Emergency Operations Portal
 - **🔴 Emergency SOS Dispatch**: Instant one-touch distress call broadcast with real-time GPS telemetry and triage urgency levels.
-- **🗺️ Kerala Live Relief Map**: Interactive canvas rendering regional disaster pins, flood spill zones, safe shelter clusters, and live telemetry coordinates.
+- **🗺️ Kerala Live Real-Time OpenStreetMap**: High-fidelity OpenStreetMap (OSM) Slippy Map engine with Web Mercator projection, multi-tier tile caching (RAM + local disk), 4 map layers (OSM Standard, CartoDB Voyager, Positron Light, Tactical Dark), reservoir inundation danger perimeters, pulse beacons, district quick-focus, and dynamic ground scale bar.
 - **📋 Incident Reporting**: Citizen crowd-sourced incident submission with category tagging, location logging, and impact assessment.
 - **📢 Real-Time Ground Bulletins**: Live ticker broadcasting official state meteorological alerts, dam discharge warnings, and evacuation notices.
 - **🚨 State Emergency Hotlines**: 24/7 direct access to National Emergency (112), District Control (1077), State Ops Center (1070), Ambulance (108), and Fire & Rescue (101).

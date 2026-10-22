@@ -1,6 +1,7 @@
 # Compiled class files & build output
 out/
-bin/
+bin/*
+!bin/get_location.ps1
 target/
 build/
 *.class
@@ -18,3 +19,6 @@ data/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Map tile cache
+cache/

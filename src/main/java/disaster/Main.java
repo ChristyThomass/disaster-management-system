@@ -1,7 +1,7 @@
 package disaster;
 
 import disaster.backend.SdrpServer;
-import disaster.ui.DashboardFrame;
+import disaster.ui.LoginFrame;
 
 import javax.swing.*;
 
@@ -23,7 +23,7 @@ public class Main {
         }, "SDRP-Startup").start();
 
         SwingUtilities.invokeLater(() -> {
-            new DashboardFrame().setVisible(true);
+            new LoginFrame().setVisible(true);
         });
     }
 }

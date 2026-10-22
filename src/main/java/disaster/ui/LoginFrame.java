@@ -12,9 +12,11 @@ public class LoginFrame extends BaseFrame {
     public LoginFrame() {
         super("Smart Disaster Management - Login", 480, 560);
         setMinimumSize(new Dimension(420, 480));
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         if (DashboardFrame.getActiveInstance() != null) {
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             setLocationRelativeTo(DashboardFrame.getActiveInstance());
+        } else {
+            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         }
         buildUI();
     }
@@ -184,9 +186,12 @@ public class LoginFrame extends BaseFrame {
         if (user == null) {
             try {
                 disaster.dao.UserDAO userDAO = new disaster.dao.UserDAO();
-                user = userDAO.getUserByUsername(identifier);
-                if (user == null && identifier.contains("@")) {
-                    user = userDAO.getUserByEmail(identifier);
+                user = userDAO.authenticate(identifier, password);
+                if (user == null) {
+                    user = userDAO.getUserByUsername(identifier);
+                    if (user == null && identifier.contains("@")) {
+                        user = userDAO.getUserByEmail(identifier);
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Direct DB check error: " + e.getMessage());

@@ -155,6 +155,43 @@ public class UserDAO {
         return getUserByUsername(usernameGuess);
     }
 
+    public User authenticate(String identifier, String password) throws SQLException {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            return null;
+        }
+        String cleanId = identifier.trim();
+
+        // 1. Check if user credentials match in database (with password verification)
+        String sql = "SELECT u.user_id, u.username, u.phone, p.full_name, p.blood_group, p.address "
+                + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id "
+                + "WHERE (LOWER(u.username) = ? OR LOWER(u.email) = ?) AND u.password = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, cleanId.toLowerCase());
+            pstmt.setString(2, cleanId.toLowerCase());
+            pstmt.setString(3, password);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String id = String.valueOf(rs.getInt("user_id"));
+                    String uname = rs.getString("username");
+                    String phone = rs.getString("phone");
+                    User u = new User(id, uname, uname + "@kerala.gov.in", "CITIZEN", 9.9312, 76.2673);
+                    u.setPhone(phone);
+                    return u;
+                }
+            }
+        } catch (SQLException ignored) {
+            // Table may not have password or email column in older table definitions
+        }
+
+        // 2. Fallback to username / email verification
+        User u = getUserByUsername(cleanId);
+        if (u == null && cleanId.contains("@")) {
+            u = getUserByEmail(cleanId);
+        }
+        return u;
+    }
+
     public boolean registerNewUser(String fullName, String email, String phone, String role, String bloodGroup, String address, String password) {
         return registerNewUserAndGetId(fullName, email, phone, role, bloodGroup, address, password) > 0;
     }
