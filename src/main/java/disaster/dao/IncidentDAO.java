@@ -12,17 +12,14 @@ public class IncidentDAO {
             return false;
         }
 
-        // Schema matching disaster_db.incident_reports: (user_id, disaster_type, severity_level, description, status)
-        String sql = "INSERT INTO incident_reports (user_id, disaster_type, severity_level, description, status) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO incident_reports (user_id, hazard_type, landmark, details, latitude, longitude, media_path, status) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) {
                 System.err.println("❌ [IncidentDAO] FAILED: Connection returned null from DBConnection!");
                 return false;
             }
-
-            conn.setAutoCommit(false);
-            int generatedIncId = -1;
 
             int uId = 1;
             if (report.getUserId() != null) {
@@ -31,25 +28,35 @@ public class IncidentDAO {
                 } catch (NumberFormatException ignored) {}
             }
 
-            int sevLevel = 5;
-            if (report.getSeverity() != null) {
-                try {
-                    sevLevel = Integer.parseInt(report.getSeverity().trim());
-                } catch (NumberFormatException e) {
-                    String s = report.getSeverity().toUpperCase();
-                    if (s.contains("CRIT")) sevLevel = 10;
-                    else if (s.contains("HIGH")) sevLevel = 8;
-                    else if (s.contains("MED")) sevLevel = 5;
-                    else sevLevel = 3;
-                }
+            String hazardType = report.getHazardType() != null && !report.getHazardType().trim().isEmpty()
+                    ? report.getHazardType().trim()
+                    : (report.getDisasterType() != null ? report.getDisasterType().trim() : "General Hazard");
+
+            String landmark = report.getLandmark() != null ? report.getLandmark().trim() : "";
+            String details = report.getDetails() != null ? report.getDetails().trim()
+                    : (report.getDescription() != null ? report.getDescription().trim() : "Incident reported");
+
+            String mediaPath = "";
+            if (attachedFile != null && attachedFile.exists()) {
+                mediaPath = attachedFile.getAbsolutePath();
+            } else if (report.getMediaPath() != null) {
+                mediaPath = report.getMediaPath().trim();
             }
 
+            String status = report.getStatus() != null && !report.getStatus().trim().isEmpty()
+                    ? report.getStatus().trim()
+                    : "REPORTED";
+
+            int generatedIncId = -1;
             try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 pstmt.setInt(1, uId);
-                pstmt.setString(2, report.getDisasterType() != null ? report.getDisasterType() : "General");
-                pstmt.setInt(3, sevLevel);
-                pstmt.setString(4, report.getDescription() != null ? report.getDescription() : "Incident reported");
-                pstmt.setString(5, report.getStatus() != null ? report.getStatus() : "Reported");
+                pstmt.setString(2, hazardType);
+                pstmt.setString(3, landmark);
+                pstmt.setString(4, details);
+                pstmt.setDouble(5, report.getLatitude());
+                pstmt.setDouble(6, report.getLongitude());
+                pstmt.setString(7, mediaPath);
+                pstmt.setString(8, status);
 
                 int affectedRows = pstmt.executeUpdate();
                 if (affectedRows > 0) {
@@ -62,19 +69,6 @@ public class IncidentDAO {
                 }
             }
 
-            // Insert into incident_media if attachment present
-            if (generatedIncId > 0 && attachedFile != null && attachedFile.exists()) {
-                String mediaSql = "INSERT INTO incident_media (incident_id, file_path) VALUES (?, ?)";
-                try (PreparedStatement mediaStmt = conn.prepareStatement(mediaSql)) {
-                    mediaStmt.setInt(1, generatedIncId);
-                    mediaStmt.setString(2, attachedFile.getAbsolutePath());
-                    mediaStmt.executeUpdate();
-                } catch (SQLException mediaEx) {
-                    System.err.println("⚠️ [IncidentDAO] Notice inserting incident media: " + mediaEx.getMessage());
-                }
-            }
-
-            conn.commit();
             System.out.println("✓ [IncidentDAO] Incident report #" + generatedIncId + " saved successfully into disaster_db.incident_reports.");
             return true;
 

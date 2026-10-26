@@ -14,6 +14,8 @@ public class DisasterReport {
     private String status;
     private int affectedPeople;
     private String verifiedBy;
+    private String landmark;
+    private String mediaPath;
 
     public DisasterReport() {
         this.reportedAt = LocalDateTime.now();
@@ -65,4 +67,16 @@ public class DisasterReport {
 
     public String getVerifiedBy() { return verifiedBy; }
     public void setVerifiedBy(String verifiedBy) { this.verifiedBy = verifiedBy; }
+
+    public String getLandmark() { return landmark; }
+    public void setLandmark(String landmark) { this.landmark = landmark; }
+
+    public String getMediaPath() { return mediaPath; }
+    public void setMediaPath(String mediaPath) { this.mediaPath = mediaPath; }
+
+    public String getHazardType() { return disasterType; }
+    public void setHazardType(String hazardType) { this.disasterType = hazardType; }
+
+    public String getDetails() { return description; }
+    public void setDetails(String details) { this.description = details; }
 }

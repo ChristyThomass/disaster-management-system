@@ -73,6 +73,22 @@ public class User {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
+    public int getId() {
+        try {
+            return userId != null ? Integer.parseInt(userId) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+    public void setId(int id) { this.userId = String.valueOf(id); }
+    public void setId(String id) { this.userId = id; }
+
+    public String getPassword() { return passwordHash; }
+    public void setPassword(String password) { this.passwordHash = password; }
+
+    public String getRole() { return userType != null ? userType : "CITIZEN"; }
+    public void setRole(String role) { this.userType = role; }
+
     @Override
     public String toString() {
         return "User{" +

@@ -210,33 +210,6 @@ public class EmergencySOSDialog extends JDialog {
                         "NDRF Dispatched (" + timeDisplay + ")"
                 );
 
-                // Direct MySQL Persistence
-                try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
-                    if (conn != null) {
-                        int uid = 1;
-                        try { uid = Integer.parseInt(activeUserId); } catch (Exception ignored) {}
-                        int genSosId = 0;
-                        try (java.sql.PreparedStatement ps = conn.prepareStatement(
-                                "INSERT INTO sos_requests (user_id, status) VALUES (?, 'Active')",
-                                java.sql.Statement.RETURN_GENERATED_KEYS)) {
-                            ps.setInt(1, uid);
-                            ps.executeUpdate();
-                            try (java.sql.ResultSet rs = ps.getGeneratedKeys()) {
-                                if (rs.next()) genSosId = rs.getInt(1);
-                            }
-                        }
-                        if (genSosId > 0) {
-                            try (java.sql.PreparedStatement psGps = conn.prepareStatement(
-                                    "INSERT INTO gps_locations (sos_id, latitude, longitude) VALUES (?, ?, ?)")) {
-                                psGps.setInt(1, genSosId);
-                                psGps.setBigDecimal(2, java.math.BigDecimal.valueOf(lat));
-                                psGps.setBigDecimal(3, java.math.BigDecimal.valueOf(lon));
-                                psGps.executeUpdate();
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
-
             } catch (Exception ex) {
                 System.err.println("SOS background dispatch error: " + ex.getMessage());
             }

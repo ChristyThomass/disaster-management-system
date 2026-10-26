@@ -4,13 +4,13 @@ import java.sql.*;
 
 public class EmergencyContactDAO {
 
-    public boolean saveContact(int userId, String contactName, String contactPhone) {
+    public boolean saveContact(int userId, String contactName, String contactPhone, String relation) {
         if (contactName == null || contactName.trim().isEmpty() || contactPhone == null || contactPhone.trim().isEmpty()) {
             System.err.println("❌ [EmergencyContactDAO] FAILED: Contact name and phone are required!");
             return false;
         }
 
-        String sql = "INSERT INTO emergency_contacts (user_id, contact_name, contact_phone) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO emergency_contacts (user_id, contact_name, contact_phone, relation) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -23,6 +23,7 @@ public class EmergencyContactDAO {
             pstmt.setInt(1, userId);
             pstmt.setString(2, contactName.trim());
             pstmt.setString(3, contactPhone.trim());
+            pstmt.setString(4, relation != null ? relation.trim() : "Emergency Contact");
 
             int affectedRows = pstmt.executeUpdate();
             System.out.println("✓ [EmergencyContactDAO] Contact '" + contactName + "' saved for User #" + userId);
@@ -33,6 +34,10 @@ public class EmergencyContactDAO {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public boolean saveContact(int userId, String contactName, String contactPhone) {
+        return saveContact(userId, contactName, contactPhone, "Emergency Contact");
     }
 
     public boolean updateContact(String oldName, String oldPhone, String newName, String newPhone) {

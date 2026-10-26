@@ -34,6 +34,15 @@ public class SOSAlert {
     public String getSosId() { return sosId; }
     public void setSosId(String sosId) { this.sosId = sosId; }
 
+    public int getId() {
+        try {
+            return sosId != null ? Integer.parseInt(sosId.replace("SOS-", "")) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+    public void setId(int id) { this.sosId = String.valueOf(id); }
+
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 

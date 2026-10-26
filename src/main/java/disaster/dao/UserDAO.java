@@ -12,21 +12,32 @@ public class UserDAO {
             return false;
         }
 
-        System.out.println(">>> [UserDAO.addUser] EXECUTING DATABASE INSERTION <<<");
-        System.out.println("    Payload -> Username: '" + user.getUsername() + "'");
-        System.out.println("    Payload -> Phone: '" + user.getPhone() + "'");
-        System.out.println("    Payload -> Full Name: '" + user.getFullName() + "'");
-        System.out.println("    Payload -> Email: '" + user.getEmail() + "'");
+        String fullName = user.getFullName() != null && !user.getFullName().trim().isEmpty()
+                ? user.getFullName().trim()
+                : (user.getUsername() != null ? user.getUsername().trim() : "Citizen User");
 
-        // Sanitize phone for VARCHAR(15) column in disaster_db.users
+        String email = user.getEmail() != null && !user.getEmail().trim().isEmpty()
+                ? user.getEmail().trim()
+                : ("user_" + System.currentTimeMillis() + "@disaster.gov.in");
+
         String rawPhone = user.getPhone();
         String cleanPhone = "9876543210";
         if (rawPhone != null && !rawPhone.trim().isEmpty()) {
             cleanPhone = rawPhone.replaceAll("[^0-9+]", "");
-            if (cleanPhone.length() > 15) {
-                cleanPhone = cleanPhone.substring(0, 15);
+            if (cleanPhone.length() > 20) {
+                cleanPhone = cleanPhone.substring(0, 20);
             }
         }
+
+        String password = user.getPassword() != null && !user.getPassword().isEmpty()
+                ? user.getPassword()
+                : (user.getPasswordHash() != null ? user.getPasswordHash() : "Pass123456");
+
+        String role = user.getRole() != null && !user.getRole().trim().isEmpty()
+                ? user.getRole().trim()
+                : (user.getUserType() != null ? user.getUserType().trim() : "CITIZEN");
+
+        String sql = "INSERT INTO users (full_name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) {
@@ -34,64 +45,27 @@ public class UserDAO {
                 return false;
             }
 
-            // Verify auto-commit
-            if (!conn.getAutoCommit()) {
-                conn.setAutoCommit(true);
-            }
-
-            // 1. Check if user already exists; if so, generate a unique username so a new database record is created
-            String desiredUsername = user.getUsername().trim();
-            String checkSql = "SELECT user_id FROM users WHERE LOWER(username) = ?";
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setString(1, desiredUsername.toLowerCase());
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next()) {
-                        String uniqueUsername = desiredUsername + "_" + (int)((System.currentTimeMillis() % 9000) + 1000);
-                        System.out.println("ℹ [UserDAO.addUser] Username '" + desiredUsername + "' exists. Creating new unique account: " + uniqueUsername);
-                        user.setUsername(uniqueUsername);
-                    }
-                }
-            }
-
-            // 2. Insert into users (username, phone)
-            String sql = "INSERT INTO users (username, phone) VALUES (?, ?)";
-            int generatedId = 0;
             try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                pstmt.setString(1, user.getUsername().trim());
-                pstmt.setString(2, cleanPhone);
+                pstmt.setString(1, fullName);
+                pstmt.setString(2, email);
+                pstmt.setString(3, cleanPhone);
+                pstmt.setString(4, password);
+                pstmt.setString(5, role);
+
                 int affectedRows = pstmt.executeUpdate();
                 System.out.println("✓ [UserDAO.addUser] Inserted into 'users' (" + affectedRows + " row affected)");
 
                 try (ResultSet keys = pstmt.getGeneratedKeys()) {
                     if (keys.next()) {
-                        generatedId = keys.getInt(1);
+                        int generatedId = keys.getInt(1);
                         user.setUserId(String.valueOf(generatedId));
+                        user.setId(generatedId);
                         System.out.println("✓ [UserDAO.addUser] Generated User ID: #" + generatedId);
                     }
                 }
             }
 
-            // 3. Insert into user_profiles
-            if (generatedId > 0) {
-                String profileSql = "INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (?, ?, ?, ?)";
-                try (PreparedStatement profStmt = conn.prepareStatement(profileSql)) {
-                    profStmt.setInt(1, generatedId);
-                    String fullName = (user.getFullName() != null && !user.getFullName().trim().isEmpty())
-                            ? user.getFullName().trim() : user.getUsername().trim();
-                    String blood = (user.getBloodGroup() != null && !user.getBloodGroup().trim().isEmpty())
-                            ? user.getBloodGroup().trim() : "O+";
-                    String addr = (user.getAddress() != null && !user.getAddress().trim().isEmpty())
-                            ? user.getAddress().trim() : "Kerala Disaster Relief Area";
-
-                    profStmt.setString(2, fullName);
-                    profStmt.setString(3, blood);
-                    profStmt.setString(4, addr);
-                    int profAffected = profStmt.executeUpdate();
-                    System.out.println("✓ [UserDAO.addUser] Inserted into 'user_profiles' (" + profAffected + " row affected)");
-                }
-            }
-
-            System.out.println(">>> [UserDAO.addUser] COMPLETED SUCCESSFULLY FOR USER: " + user.getUsername() + " <<<");
+            System.out.println(">>> [UserDAO.addUser] COMPLETED SUCCESSFULLY FOR USER: " + email + " <<<");
             return true;
         } catch (SQLException e) {
             System.err.println("❌ [UserDAO.addUser] SQL Exception during user creation!");
@@ -103,55 +77,21 @@ public class UserDAO {
         }
     }
 
-    private void ensureProfileExists(Connection conn, int userId, User user) {
-        String checkSql = "SELECT profile_id FROM user_profiles WHERE user_id = ?";
-        try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-            checkStmt.setInt(1, userId);
-            try (ResultSet rs = checkStmt.executeQuery()) {
-                if (!rs.next()) {
-                    String profSql = "INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (?, ?, ?, ?)";
-                    try (PreparedStatement profStmt = conn.prepareStatement(profSql)) {
-                        profStmt.setInt(1, userId);
-                        String fullName = user.getFullName() != null ? user.getFullName() : user.getUsername();
-                        profStmt.setString(2, fullName);
-                        profStmt.setString(3, user.getBloodGroup() != null ? user.getBloodGroup() : "O+");
-                        profStmt.setString(4, user.getAddress() != null ? user.getAddress() : "Kerala Disaster Relief Area");
-                        profStmt.executeUpdate();
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            System.err.println("Notice on profile check: " + ex.getMessage());
-        }
-    }
-
     public boolean saveUser(User user) throws SQLException {
         return addUser(user);
     }
 
     public User getUserByUsername(String username) throws SQLException {
-        String sql = "SELECT u.user_id, u.username, u.phone, p.full_name, p.blood_group, p.address "
-                + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id "
-                + "WHERE LOWER(u.username) = ?";
+        if (username == null || username.trim().isEmpty()) return null;
+        String sql = "SELECT id, full_name, email, phone, password, role, created_at "
+                + "FROM users WHERE LOWER(email) = ? OR LOWER(full_name) = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, username.toLowerCase());
+            pstmt.setString(1, username.trim().toLowerCase());
+            pstmt.setString(2, username.trim().toLowerCase());
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    String id = String.valueOf(rs.getInt("user_id"));
-                    String uname = rs.getString("username");
-                    String phone = rs.getString("phone");
-                    String fullName = rs.getString("full_name");
-                    String blood = rs.getString("blood_group");
-                    String addr = rs.getString("address");
-                    String email = uname.contains("@") ? uname : (uname + "@disaster.gov.in");
-                    email = disaster.backend.DatabaseManager.cleanEmail(email);
-                    User u = new User(id, uname, email, "CITIZEN", 9.9312, 76.2673);
-                    u.setPhone(phone != null ? phone : "");
-                    u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (uname.contains("@") ? uname.substring(0, uname.indexOf('@')) : uname));
-                    u.setBloodGroup(blood != null ? blood : "O+");
-                    u.setAddress(addr != null ? addr : "");
-                    return u;
+                    return mapUser(rs);
                 }
             }
         }
@@ -159,51 +99,48 @@ public class UserDAO {
     }
 
     public User getUserByEmail(String email) throws SQLException {
-        String usernameGuess = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
-        return getUserByUsername(usernameGuess);
+        if (email == null || email.trim().isEmpty()) return null;
+        String sql = "SELECT id, full_name, email, phone, password, role, created_at "
+                + "FROM users WHERE LOWER(email) = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, email.trim().toLowerCase());
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapUser(rs);
+                }
+            }
+        }
+        return null;
     }
 
     public User authenticate(String identifier, String password) throws SQLException {
         if (identifier == null || identifier.trim().isEmpty()) {
             return null;
         }
-        String cleanId = identifier.trim();
+        String cleanId = identifier.trim().toLowerCase();
 
-        // 1. Check if user credentials match in database (with password verification)
-        String sql = "SELECT u.user_id, u.username, u.phone, p.full_name, p.blood_group, p.address "
-                + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id "
-                + "WHERE (LOWER(u.username) = ? OR LOWER(u.email) = ?) AND u.password = ?";
+        String sql = "SELECT id, full_name, email, phone, password, role, created_at "
+                + "FROM users WHERE (LOWER(email) = ? OR LOWER(full_name) = ? OR phone = ?) AND password = ?";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, cleanId.toLowerCase());
-            pstmt.setString(2, cleanId.toLowerCase());
-            pstmt.setString(3, password);
+            pstmt.setString(1, cleanId);
+            pstmt.setString(2, cleanId);
+            pstmt.setString(3, cleanId);
+            pstmt.setString(4, password != null ? password : "");
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    String id = String.valueOf(rs.getInt("user_id"));
-                    String uname = rs.getString("username");
-                    String phone = rs.getString("phone");
-                    String fullName = rs.getString("full_name");
-                    String blood = rs.getString("blood_group");
-                    String addr = rs.getString("address");
-                    String email = uname.contains("@") ? uname : (uname + "@disaster.gov.in");
-                    email = disaster.backend.DatabaseManager.cleanEmail(email);
-                    User u = new User(id, uname, email, "CITIZEN", 9.9312, 76.2673);
-                    u.setPhone(phone != null ? phone : "");
-                    u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (uname.contains("@") ? uname.substring(0, uname.indexOf('@')) : uname));
-                    u.setBloodGroup(blood != null ? blood : "O+");
-                    u.setAddress(addr != null ? addr : "");
-                    return u;
+                    return mapUser(rs);
                 }
             }
-        } catch (SQLException ignored) {
-            // Table may not have password or email column in older table definitions
+        } catch (SQLException e) {
+            System.err.println("Notice on authenticate: " + e.getMessage());
         }
 
-        // 2. Fallback to username / email verification
-        User u = getUserByUsername(cleanId);
-        if (u == null && cleanId.contains("@")) {
-            u = getUserByEmail(cleanId);
+        // Fallback to email/username query if password check didn't match directly
+        User u = getUserByEmail(cleanId);
+        if (u == null) {
+            u = getUserByUsername(cleanId);
         }
         return u;
     }
@@ -218,49 +155,33 @@ public class UserDAO {
             return -1;
         }
 
-        String username = email.trim();
+        String cleanEmail = email.trim();
+        String name = (fullName != null && !fullName.trim().isEmpty()) ? fullName.trim() : cleanEmail;
         String cleanPhone = "9876543210";
         if (phone != null && !phone.trim().isEmpty()) {
             cleanPhone = phone.replaceAll("[^0-9+]", "");
-            if (cleanPhone.length() > 15) {
-                cleanPhone = cleanPhone.substring(0, 15);
+            if (cleanPhone.length() > 20) {
+                cleanPhone = cleanPhone.substring(0, 20);
             }
         }
+        String userRole = (role != null && !role.trim().isEmpty()) ? role.trim() : "CITIZEN";
+        String userPassword = (password != null) ? password : "";
 
-        Connection conn = null;
-        try {
-            conn = DBConnection.getConnection();
+        String insertSql = "INSERT INTO users (full_name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = DBConnection.getConnection()) {
             if (conn == null) {
                 System.err.println("❌ [UserDAO.registerNewUser] FAILED: Connection returned null from DBConnection!");
                 return -1;
             }
 
-            // Start JDBC transaction
-            conn.setAutoCommit(false);
-
-            // 1. Check if user already exists; if so, generate unique username
-            String desiredUsername = username;
-            String checkSql = "SELECT user_id FROM users WHERE LOWER(username) = ?";
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                checkStmt.setString(1, desiredUsername.toLowerCase());
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next()) {
-                        desiredUsername = username + "_" + (int)((System.currentTimeMillis() % 9000) + 1000);
-                    }
-                }
-            }
-
             int generatedUserId = -1;
-
-            // 2. Insert into users table (username as email, email, phone, role, password)
-            // Using Statement.RETURN_GENERATED_KEYS to retrieve auto-generated user_id
-            String insertUserSql = "INSERT INTO users (username, email, phone, role, password) VALUES (?, ?, ?, ?, ?)";
-            try (PreparedStatement userStmt = conn.prepareStatement(insertUserSql, Statement.RETURN_GENERATED_KEYS)) {
-                userStmt.setString(1, desiredUsername);
-                userStmt.setString(2, email.trim());
+            try (PreparedStatement userStmt = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                userStmt.setString(1, name);
+                userStmt.setString(2, cleanEmail);
                 userStmt.setString(3, cleanPhone);
-                userStmt.setString(4, role != null ? role : "CITIZEN");
-                userStmt.setString(5, password != null ? password : "");
+                userStmt.setString(4, userPassword);
+                userStmt.setString(5, userRole);
                 userStmt.executeUpdate();
 
                 try (ResultSet keys = userStmt.getGeneratedKeys()) {
@@ -268,63 +189,37 @@ public class UserDAO {
                         generatedUserId = keys.getInt(1);
                     }
                 }
-            } catch (SQLException ex) {
-                // Fallback for minimalist users table schema (username, phone)
-                String fallbackSql = "INSERT INTO users (username, phone) VALUES (?, ?)";
-                try (PreparedStatement fallbackStmt = conn.prepareStatement(fallbackSql, Statement.RETURN_GENERATED_KEYS)) {
-                    fallbackStmt.setString(1, desiredUsername);
-                    fallbackStmt.setString(2, cleanPhone);
-                    fallbackStmt.executeUpdate();
-
-                    try (ResultSet keys = fallbackStmt.getGeneratedKeys()) {
-                        if (keys.next()) {
-                            generatedUserId = keys.getInt(1);
-                        }
-                    }
-                }
             }
 
-            if (generatedUserId <= 0) {
-                conn.rollback();
-                return -1;
+            if (generatedUserId > 0) {
+                System.out.println("✓ [UserDAO.registerNewUser] User record created with ID #" + generatedUserId + " (" + cleanEmail + ")");
             }
-
-            // 3. Insert into user_profiles table using generated user_id
-            String profileSql = "INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (?, ?, ?, ?)";
-            try (PreparedStatement profStmt = conn.prepareStatement(profileSql)) {
-                profStmt.setInt(1, generatedUserId);
-                profStmt.setString(2, (fullName != null && !fullName.trim().isEmpty()) ? fullName.trim() : desiredUsername);
-                profStmt.setString(3, (bloodGroup != null && !bloodGroup.trim().isEmpty()) ? bloodGroup.trim() : "O+");
-                profStmt.setString(4, (address != null && !address.trim().isEmpty()) ? address.trim() : "Kerala Disaster Relief Area");
-                profStmt.executeUpdate();
-            }
-
-            // Commit transaction
-            conn.commit();
-            System.out.println("✓ [UserDAO.registerNewUser] Transaction successful for User ID #" + generatedUserId + " (" + email + ")");
             return generatedUserId;
 
         } catch (SQLException e) {
-            System.err.println("❌ [UserDAO.registerNewUser] SQL Exception! Rolling back transaction...");
+            System.err.println("❌ [UserDAO.registerNewUser] SQL Exception while inserting user: " + e.getMessage());
             e.printStackTrace();
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackEx) {
-                    rollbackEx.printStackTrace();
-                }
-            }
             return -1;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
         }
     }
-}
 
+    private User mapUser(ResultSet rs) throws SQLException {
+        int id = rs.getInt("id");
+        String fullName = rs.getString("full_name");
+        String email = rs.getString("email");
+        String phone = rs.getString("phone");
+        String role = rs.getString("role");
+        String password = rs.getString("password");
+
+        User u = new User(String.valueOf(id), fullName, email, role != null ? role : "CITIZEN", 9.9312, 76.2673);
+        u.setId(id);
+        u.setFullName(fullName);
+        u.setEmail(email);
+        u.setPhone(phone != null ? phone : "");
+        u.setUserType(role != null ? role : "CITIZEN");
+        u.setRole(role != null ? role : "CITIZEN");
+        u.setPassword(password != null ? password : "");
+        u.setPasswordHash(password != null ? password : "");
+        return u;
+    }
+}

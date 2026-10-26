@@ -1,141 +1,96 @@
 -- ============================================================================
--- ALVINA3548X DATABASE INTEGRATED SCHEMA FOR SDRP
--- Compatible with UserDAO, SosDAO, IncidentDAO & SDRP Engine
+-- disaster_db  --  Clean 5-Table Schema
+-- Matches: UserDAO, EmergencyContactDAO, VolunteerDAO, IncidentDAO, SOSDAO
+-- Run this in phpMyAdmin to reset the schema from scratch.
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS users (
-    user_id VARCHAR(36) PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    phone VARCHAR(20),
-    password_hash VARCHAR(255) NOT NULL,
-    user_type VARCHAR(20) NOT NULL DEFAULT 'VICTIM',
-    latitude DOUBLE DEFAULT 0.0,
-    longitude DOUBLE DEFAULT 0.0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE
-);
+SET FOREIGN_KEY_CHECKS = 0;
 
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+USE `disaster_db`;
 
-CREATE TABLE IF NOT EXISTS user_profiles (
-    profile_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    full_name VARCHAR(100),
-    blood_group VARCHAR(10),
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-);
+-- Drop legacy tables
+DROP TABLE IF EXISTS `emergency_contacts`;
+DROP TABLE IF EXISTS `gps_locations`;
+DROP TABLE IF EXISTS `incident_media`;
+DROP TABLE IF EXISTS `incident_reports`;
+DROP TABLE IF EXISTS `notifications`;
+DROP TABLE IF EXISTS `rescue_status`;
+DROP TABLE IF EXISTS `sos_requests`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `user_profiles`;
+DROP TABLE IF EXISTS `volunteers`;
+DROP TABLE IF EXISTS `volunteer_tasks`;
+DROP TABLE IF EXISTS `sos_alerts`;
+DROP TABLE IF EXISTS `sos_responses`;
+DROP TABLE IF EXISTS `disaster_reports`;
+DROP TABLE IF EXISTS `alerts`;
 
-CREATE TABLE IF NOT EXISTS sos_requests (
-    sos_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    urgency_level VARCHAR(20) DEFAULT 'CRITICAL',
-    description VARCHAR(1000),
-    status VARCHAR(20) DEFAULT 'Active',
-    responders_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-);
+-- 1. users
+CREATE TABLE `users` (
+    `id`         INT AUTO_INCREMENT PRIMARY KEY,
+    `full_name`  VARCHAR(100)  NOT NULL,
+    `email`      VARCHAR(100)  NOT NULL UNIQUE,
+    `phone`      VARCHAR(20),
+    `password`   VARCHAR(255)  NOT NULL,
+    `role`       VARCHAR(30)   NOT NULL DEFAULT 'CITIZEN',
+    `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS gps_locations (
-    location_id VARCHAR(36) PRIMARY KEY,
-    sos_id VARCHAR(36) NOT NULL,
-    latitude DOUBLE NOT NULL,
-    longitude DOUBLE NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sos_id) REFERENCES sos_requests(sos_id) ON DELETE CASCADE
-);
+-- 2. emergency_contacts
+CREATE TABLE `emergency_contacts` (
+    `id`            INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id`       INT          NOT NULL,
+    `contact_name`  VARCHAR(100) NOT NULL,
+    `contact_phone` VARCHAR(20)  NOT NULL,
+    `relation`      VARCHAR(50),
+    CONSTRAINT `fk_ec_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS incident_reports (
-    report_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    disaster_type VARCHAR(30) NOT NULL,
-    severity_level INT DEFAULT 1,
-    severity VARCHAR(20) DEFAULT 'HIGH',
-    description VARCHAR(1000) NOT NULL,
-    latitude DOUBLE DEFAULT 0.0,
-    longitude DOUBLE DEFAULT 0.0,
-    affected_people INT DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'PENDING',
-    verified_by VARCHAR(36),
-    verified_at TIMESTAMP,
-    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-);
+-- 3. volunteers
+CREATE TABLE `volunteers` (
+    `id`              INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id`         INT          NOT NULL,
+    `district`        VARCHAR(50),
+    `skill`           VARCHAR(100),
+    `id_proof_status` VARCHAR(50)  NOT NULL DEFAULT 'UNVERIFIED',
+    `approval_status` VARCHAR(30)  NOT NULL DEFAULT 'PENDING',
+    CONSTRAINT `fk_vol_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Core SDRP Engine Compatibility Tables
-CREATE TABLE IF NOT EXISTS sos_alerts (
-    sos_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    latitude DOUBLE NOT NULL,
-    longitude DOUBLE NOT NULL,
-    urgency_level VARCHAR(20) NOT NULL,
-    description VARCHAR(1000) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'ACTIVE',
-    responders_count INT DEFAULT 0
-);
+-- 4. incident_reports
+CREATE TABLE `incident_reports` (
+    `id`          INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id`     INT          NOT NULL,
+    `hazard_type` VARCHAR(50)  NOT NULL,
+    `landmark`    VARCHAR(150),
+    `details`     TEXT,
+    `latitude`    DECIMAL(10,8),
+    `longitude`   DECIMAL(11,8),
+    `media_path`  VARCHAR(255),
+    `status`      VARCHAR(30)  NOT NULL DEFAULT 'REPORTED',
+    `created_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_inc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS sos_responses (
-    response_id VARCHAR(36) PRIMARY KEY,
-    sos_id VARCHAR(36) NOT NULL,
-    responder_id VARCHAR(36) NOT NULL,
-    responded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'RESPONDING'
-);
+-- 5. sos_requests
+CREATE TABLE `sos_requests` (
+    `id`         INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id`    INT            NOT NULL,
+    `latitude`   DECIMAL(10,8)  NOT NULL,
+    `longitude`  DECIMAL(11,8)  NOT NULL,
+    `status`     VARCHAR(30)    NOT NULL DEFAULT 'DISPATCHED',
+    `created_at` TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_sos_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS disaster_reports (
-    report_id VARCHAR(36) PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    disaster_type VARCHAR(30) NOT NULL,
-    latitude DOUBLE NOT NULL,
-    longitude DOUBLE NOT NULL,
-    severity VARCHAR(20) NOT NULL,
-    description VARCHAR(1000) NOT NULL,
-    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'PENDING',
-    affected_people INT DEFAULT 0,
-    verified_by VARCHAR(36),
-    verified_at TIMESTAMP
-);
+SET FOREIGN_KEY_CHECKS = 1;
 
-CREATE TABLE IF NOT EXISTS alerts (
-    alert_id VARCHAR(36) PRIMARY KEY,
-    type VARCHAR(30) NOT NULL,
-    message VARCHAR(1000) NOT NULL,
-    priority VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_acknowledged BOOLEAN DEFAULT FALSE
-);
+-- Seed data (only for dev/test)
+INSERT INTO `users` (full_name, email, phone, password, role) VALUES
+    ('Alvin MS',      'alvin@disaster.gov.in', '9876543210', 'Pass123456', 'CITIZEN'),
+    ('Athul Cleetus', 'athul@disaster.gov.in', '8765432109', 'Pass123456', 'VOLUNTEER');
 
--- Sample Data Seeding
-MERGE INTO users (user_id, username, email, password_hash, user_type, latitude, longitude, is_active)
-VALUES ('user-001', 'john_responder', 'john@example.com', '8d969eef6ecad3c29a3a873fba5b4cd9fdb20ac89f3ccc36fafeb4f0f79c1be', 'RESPONDER', 12.9716, 77.5946, true);
-
-MERGE INTO users (user_id, username, email, password_hash, user_type, latitude, longitude, is_active)
-VALUES ('user-002', 'sarah_victim', 'sarah@example.com', '8d969eef6ecad3c29a3a873fba5b4cd9fdb20ac89f3ccc36fafeb4f0f79c1be', 'VICTIM', 12.9716, 77.5946, true);
-
-MERGE INTO users (user_id, username, email, password_hash, user_type, latitude, longitude, is_active)
-VALUES ('user-003', 'admin_user', 'admin@example.com', '8d969eef6ecad3c29a3a873fba5b4cd9fdb20ac89f3ccc36fafeb4f0f79c1be', 'ADMIN', 12.9716, 77.5946, true);
-
-MERGE INTO user_profiles (profile_id, user_id, full_name, blood_group)
-VALUES ('prof-001', 'user-001', 'John Smith', 'O+');
-
-MERGE INTO sos_requests (sos_id, user_id, urgency_level, description, status)
-VALUES ('sos-001', 'user-002', 'CRITICAL', 'Person trapped under collapsed building', 'Active');
-
-MERGE INTO gps_locations (location_id, sos_id, latitude, longitude)
-VALUES ('loc-001', 'sos-001', 12.9716, 77.5946);
-
-MERGE INTO incident_reports (report_id, user_id, disaster_type, severity_level, severity, description, latitude, longitude, affected_people, status)
-VALUES ('report-001', 'user-002', 'EARTHQUAKE', 3, 'HIGH', 'Major earthquake in downtown area', 12.9716, 77.5946, 150, 'PENDING');
-
-MERGE INTO sos_alerts (sos_id, user_id, latitude, longitude, urgency_level, description, status)
-VALUES ('sos-001', 'user-002', 12.9716, 77.5946, 'CRITICAL', 'Person trapped under collapsed building', 'ACTIVE');
-
-MERGE INTO disaster_reports (report_id, user_id, disaster_type, latitude, longitude, severity, description, affected_people, status)
-VALUES ('report-001', 'user-002', 'EARTHQUAKE', 12.9716, 77.5946, 'HIGH', 'Major earthquake in downtown area', 150, 'PENDING');
-
-MERGE INTO alerts (alert_id, type, message, priority)
-VALUES ('alert-001', 'DISASTER_UPDATE', 'Earthquake alert: High magnitude earthquake detected', 'CRITICAL');

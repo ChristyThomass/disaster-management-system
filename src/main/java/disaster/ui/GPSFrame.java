@@ -472,21 +472,18 @@ public class GPSFrame extends BaseFrame {
             pins.add(new MapPin(8.5241, 76.9366, "Thiruvananthapuram State Control Center", "DEPOTS", "Command Hub", "Kerala State Disaster Management Authority Central Ops.", new Color(30, 64, 175), "DEPOT"));
             pins.add(new MapPin(11.8745, 75.3704, "Kannur Northern Relief Camp", "CAMPS", "Capacity: 290/400", "Operational shelter zone at Government High School.", new Color(37, 99, 235), "DEPOT"));
 
-            // Load live GPS locations from MySQL disaster_db
+            // Load live GPS locations directly from sos_requests
             try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
                 if (conn != null) {
-                    String sql = "SELECT g.latitude, g.longitude, s.sos_id, s.status, r.update_message "
-                            + "FROM gps_locations g "
-                            + "JOIN sos_requests s ON g.sos_id = s.sos_id "
-                            + "LEFT JOIN rescue_status r ON s.sos_id = r.sos_id";
+                    String sql = "SELECT id, latitude, longitude, status FROM sos_requests";
                     try (java.sql.Statement st = conn.createStatement();
                          java.sql.ResultSet rs = st.executeQuery(sql)) {
                         while (rs.next()) {
                             double lat = rs.getDouble("latitude");
                             double lon = rs.getDouble("longitude");
-                            int id = rs.getInt("sos_id");
-                            String desc = rs.getString("update_message");
-                            pins.add(new MapPin(lat, lon, "SOS Distress #" + id, "ALERTS", "Live MySQL Telemetry", desc != null ? desc : "Active distress signal broadcast", UITheme.BRAND_CRIMSON, "TRIANGLE", 2500));
+                            int id = rs.getInt("id");
+                            String stVal = rs.getString("status");
+                            pins.add(new MapPin(lat, lon, "SOS Distress #" + id, "ALERTS", "Status: " + (stVal != null ? stVal : "DISPATCHED"), "Active distress signal broadcast", UITheme.BRAND_CRIMSON, "TRIANGLE", 2500));
                         }
                     }
                 }

@@ -130,104 +130,56 @@ public class DatabaseManager {
         try (Statement stmt = conn.createStatement()) {
             // 1. users
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `users` ("
-                    + "`user_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`username` VARCHAR(50) NOT NULL UNIQUE, "
-                    + "`phone` VARCHAR(15)"
+                    + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`full_name` VARCHAR(100) NOT NULL, "
+                    + "`email` VARCHAR(100) NOT NULL UNIQUE, "
+                    + "`phone` VARCHAR(20), "
+                    + "`password` VARCHAR(255) NOT NULL, "
+                    + "`role` VARCHAR(30) NOT NULL DEFAULT 'CITIZEN', "
+                    + "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            // 2. user_profiles
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `user_profiles` ("
-                    + "`profile_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`user_id` INT NOT NULL, "
-                    + "`full_name` VARCHAR(100), "
-                    + "`blood_group` VARCHAR(5), "
-                    + "`address` VARCHAR(200)"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 3. sos_requests
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `sos_requests` ("
-                    + "`sos_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`user_id` INT NOT NULL, "
-                    + "`status` VARCHAR(20) DEFAULT 'Active', "
-                    + "`request_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 4. gps_locations
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `gps_locations` ("
-                    + "`location_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`sos_id` INT NOT NULL, "
-                    + "`latitude` DECIMAL(10,8) NOT NULL, "
-                    + "`longitude` DECIMAL(11,8) NOT NULL"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 5. rescue_status
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `rescue_status` ("
-                    + "`status_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`sos_id` INT NOT NULL, "
-                    + "`update_message` VARCHAR(255), "
-                    + "`update_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 6. incident_reports
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `incident_reports` ("
-                    + "`incident_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`user_id` INT NOT NULL, "
-                    + "`disaster_type` VARCHAR(50) NOT NULL, "
-                    + "`severity_level` INT DEFAULT 5, "
-                    + "`description` TEXT, "
-                    + "`status` VARCHAR(20) DEFAULT 'Reported'"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 7. incident_media
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `incident_media` ("
-                    + "`media_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`incident_id` INT NOT NULL, "
-                    + "`file_path` VARCHAR(255)"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 8. emergency_contacts
+            // 2. emergency_contacts
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `emergency_contacts` ("
-                    + "`contact_id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
                     + "`user_id` INT NOT NULL, "
                     + "`contact_name` VARCHAR(100) NOT NULL, "
-                    + "`contact_phone` VARCHAR(15) NOT NULL"
+                    + "`contact_phone` VARCHAR(20) NOT NULL, "
+                    + "`relation` VARCHAR(50)"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            // 9. notifications
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `notifications` ("
-                    + "`notification_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`user_id` INT NOT NULL, "
-                    + "`message` VARCHAR(255) NOT NULL, "
-                    + "`is_read` BIT DEFAULT 0"
-                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-            // 10. volunteers
+            // 3. volunteers
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `volunteers` ("
                     + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`username` VARCHAR(50), "
-                    + "`name` VARCHAR(100) NOT NULL, "
-                    + "`email` VARCHAR(100), "
-                    + "`phone` VARCHAR(20), "
+                    + "`user_id` INT NOT NULL, "
                     + "`district` VARCHAR(50), "
                     + "`skill` VARCHAR(100), "
-                    + "`id_proof` VARCHAR(255), "
-                    + "`certificate` VARCHAR(255), "
-                    + "`status` VARCHAR(30) DEFAULT 'Pending', "
-                    + "`created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + "`id_proof_status` VARCHAR(50) DEFAULT 'UNVERIFIED', "
+                    + "`approval_status` VARCHAR(30) NOT NULL DEFAULT 'PENDING'"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            // 11. volunteer_tasks
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `volunteer_tasks` ("
-                    + "`task_id` INT AUTO_INCREMENT PRIMARY KEY, "
-                    + "`volunteer_id` INT, "
-                    + "`volunteer_name` VARCHAR(100), "
-                    + "`task_title` VARCHAR(150) NOT NULL, "
-                    + "`district` VARCHAR(50), "
-                    + "`location` VARCHAR(150), "
-                    + "`priority` VARCHAR(20) DEFAULT 'High', "
-                    + "`status` VARCHAR(30) DEFAULT 'Assigned', "
-                    + "`assigned_date` VARCHAR(30), "
-                    + "`instructions` TEXT"
+            // 4. incident_reports
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `incident_reports` ("
+                    + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`user_id` INT NOT NULL, "
+                    + "`hazard_type` VARCHAR(50) NOT NULL, "
+                    + "`landmark` VARCHAR(150), "
+                    + "`details` TEXT, "
+                    + "`latitude` DECIMAL(10,8), "
+                    + "`longitude` DECIMAL(11,8), "
+                    + "`media_path` VARCHAR(255), "
+                    + "`status` VARCHAR(30) NOT NULL DEFAULT 'REPORTED', "
+                    + "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // 5. sos_requests
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `sos_requests` ("
+                    + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`user_id` INT NOT NULL, "
+                    + "`latitude` DECIMAL(10,8) NOT NULL, "
+                    + "`longitude` DECIMAL(11,8) NOT NULL, "
+                    + "`status` VARCHAR(30) NOT NULL DEFAULT 'DISPATCHED', "
+                    + "`created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
     }
@@ -238,14 +190,12 @@ public class DatabaseManager {
              ResultSet rs = stmt.executeQuery("SELECT count(*) FROM users")) {
             if (rs.next() && rs.getInt(1) == 0) {
                 // Seed alvin_ms
-                String sql1 = "INSERT INTO users (username, phone) VALUES ('alvin_ms', '9876543210')";
+                String sql1 = "INSERT INTO users (full_name, email, phone, password, role) VALUES ('Alvin MS', 'alvin@disaster.gov.in', '9876543210', 'Pass123456', 'CITIZEN')";
                 stmt.executeUpdate(sql1);
-                stmt.executeUpdate("INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (1, 'Alvin MS', 'O+', 'Hostel Block A')");
 
                 // Seed athul_c
-                String sql2 = "INSERT INTO users (username, phone) VALUES ('athul_c', '8765432109')";
+                String sql2 = "INSERT INTO users (full_name, email, phone, password, role) VALUES ('Athul Cleetus', 'athul@disaster.gov.in', '8765432109', 'Pass123456', 'VOLUNTEER')";
                 stmt.executeUpdate(sql2);
-                stmt.executeUpdate("INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (2, 'Athul Cleetus', 'B+', 'Hostel Block B')");
             }
         } catch (SQLException ignored) {}
     }
@@ -258,85 +208,52 @@ public class DatabaseManager {
             try (Connection conn = DriverManager.getConnection(h2Url, "sa", "");
                  Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate("CREATE TABLE IF NOT EXISTS users ("
-                        + "user_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "username VARCHAR(50) NOT NULL UNIQUE, "
-                        + "phone VARCHAR(15))");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS user_profiles ("
-                        + "profile_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "user_id INT NOT NULL, "
-                        + "full_name VARCHAR(100), "
-                        + "blood_group VARCHAR(5), "
-                        + "address VARCHAR(200))");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS sos_requests ("
-                        + "sos_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "user_id INT NOT NULL, "
-                        + "status VARCHAR(20) DEFAULT 'Active', "
-                        + "request_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS gps_locations ("
-                        + "location_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "sos_id INT NOT NULL, "
-                        + "latitude DECIMAL(10,8) NOT NULL, "
-                        + "longitude DECIMAL(11,8) NOT NULL)");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS rescue_status ("
-                        + "status_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "sos_id INT NOT NULL, "
-                        + "update_message VARCHAR(255), "
-                        + "update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS incident_reports ("
-                        + "incident_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "user_id INT NOT NULL, "
-                        + "disaster_type VARCHAR(50) NOT NULL, "
-                        + "severity_level INT DEFAULT 5, "
-                        + "description TEXT, "
-                        + "status VARCHAR(20) DEFAULT 'Reported')");
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "full_name VARCHAR(100) NOT NULL, "
+                        + "email VARCHAR(100) NOT NULL UNIQUE, "
+                        + "phone VARCHAR(20), "
+                        + "password VARCHAR(255) NOT NULL, "
+                        + "role VARCHAR(30) DEFAULT 'CITIZEN', "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
                 stmt.executeUpdate("CREATE TABLE IF NOT EXISTS emergency_contacts ("
-                        + "contact_id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
                         + "user_id INT NOT NULL, "
                         + "contact_name VARCHAR(100) NOT NULL, "
-                        + "contact_phone VARCHAR(15) NOT NULL)");
-
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS notifications ("
-                        + "notification_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "user_id INT NOT NULL, "
-                        + "message VARCHAR(255) NOT NULL, "
-                        + "is_read BOOLEAN DEFAULT FALSE)");
+                        + "contact_phone VARCHAR(20) NOT NULL, "
+                        + "relation VARCHAR(50))");
 
                 stmt.executeUpdate("CREATE TABLE IF NOT EXISTS volunteers ("
                         + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "username VARCHAR(50), "
-                        + "name VARCHAR(100) NOT NULL, "
-                        + "email VARCHAR(100), "
-                        + "phone VARCHAR(20), "
+                        + "user_id INT NOT NULL, "
                         + "district VARCHAR(50), "
                         + "skill VARCHAR(100), "
-                        + "id_proof VARCHAR(255), "
-                        + "certificate VARCHAR(255), "
-                        + "status VARCHAR(30) DEFAULT 'Pending', "
+                        + "id_proof_status VARCHAR(50) DEFAULT 'UNVERIFIED', "
+                        + "approval_status VARCHAR(30) DEFAULT 'PENDING')");
+
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS incident_reports ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "user_id INT NOT NULL, "
+                        + "hazard_type VARCHAR(50) NOT NULL, "
+                        + "landmark VARCHAR(150), "
+                        + "details TEXT, "
+                        + "latitude DECIMAL(10,8), "
+                        + "longitude DECIMAL(11,8), "
+                        + "media_path VARCHAR(255), "
+                        + "status VARCHAR(30) DEFAULT 'REPORTED', "
                         + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
-                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS volunteer_tasks ("
-                        + "task_id INT AUTO_INCREMENT PRIMARY KEY, "
-                        + "volunteer_id INT, "
-                        + "volunteer_name VARCHAR(100), "
-                        + "task_title VARCHAR(150) NOT NULL, "
-                        + "district VARCHAR(50), "
-                        + "location VARCHAR(150), "
-                        + "priority VARCHAR(20) DEFAULT 'High', "
-                        + "status VARCHAR(30) DEFAULT 'Assigned', "
-                        + "assigned_date VARCHAR(30), "
-                        + "instructions TEXT)");
-
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS sos_requests ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "user_id INT NOT NULL, "
+                        + "latitude DECIMAL(10,8) NOT NULL, "
+                        + "longitude DECIMAL(11,8) NOT NULL, "
+                        + "status VARCHAR(30) DEFAULT 'DISPATCHED', "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 
                 ResultSet rs = stmt.executeQuery("SELECT count(*) FROM users");
                 if (rs.next() && rs.getInt(1) == 0) {
-                    stmt.executeUpdate("INSERT INTO users (username, phone) VALUES ('alvin_ms', '9876543210')");
-                    stmt.executeUpdate("INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (1, 'Alvin MS', 'O+', 'Hostel Block A')");
+                    stmt.executeUpdate("INSERT INTO users (full_name, email, phone, password, role) VALUES ('Alvin MS', 'alvin@disaster.gov.in', '9876543210', 'Pass123456', 'CITIZEN')");
                 }
                 return true;
             }
@@ -420,9 +337,10 @@ public class DatabaseManager {
             } catch (NumberFormatException ignored) {}
         }
 
-        // Try lookup by username
-        try (PreparedStatement ps = conn.prepareStatement("SELECT user_id FROM users WHERE LOWER(username) = ?")) {
+        // Try lookup by username or email
+        try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM users WHERE LOWER(email) = ? OR LOWER(full_name) = ?")) {
             ps.setString(1, clean.toLowerCase());
+            ps.setString(2, clean.toLowerCase());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
             }
@@ -430,7 +348,7 @@ public class DatabaseManager {
 
         // Fallback: first user in database
         try (Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery("SELECT user_id FROM users ORDER BY user_id ASC LIMIT 1")) {
+             ResultSet rs = st.executeQuery("SELECT id FROM users ORDER BY id ASC LIMIT 1")) {
             if (rs.next()) return rs.getInt(1);
         } catch (SQLException ignored) {}
 
@@ -443,12 +361,11 @@ public class DatabaseManager {
 
     public User getUserByUsername(String username) {
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
-            String sql = "SELECT u.user_id, u.username, u.phone, p.full_name, p.blood_group, p.address "
-                    + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id "
-                    + "WHERE LOWER(u.username) = ?";
+            String sql = "SELECT id, full_name, email, phone, role, password FROM users WHERE LOWER(email) = ? OR LOWER(full_name) = ?";
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, username.toLowerCase());
+                pstmt.setString(2, username.toLowerCase());
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         return mapUser(rs);
@@ -459,21 +376,14 @@ public class DatabaseManager {
             }
         }
         for (User u : memoryUsers.values()) {
-            if (u.getUsername().equalsIgnoreCase(username)) return u;
+            if (u.getUsername().equalsIgnoreCase(username) || (u.getEmail() != null && u.getEmail().equalsIgnoreCase(username))) return u;
         }
         return null;
     }
 
     public User getUserByEmail(String email) {
-        if (email != null && email.contains("@")) {
-            String uname = email.substring(0, email.indexOf('@'));
-            User u = getUserByUsername(uname);
-            if (u != null) return u;
-        }
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
-            String sql = "SELECT u.user_id, u.username, u.phone, p.full_name, p.blood_group, p.address "
-                    + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id "
-                    + "WHERE LOWER(u.username) = ?";
+            String sql = "SELECT id, full_name, email, phone, role, password FROM users WHERE LOWER(email) = ?";
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, email.toLowerCase());
@@ -497,53 +407,37 @@ public class DatabaseManager {
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
             try (Connection conn = getConnection()) {
                 // Check if user already exists
-                String checkSql = "SELECT user_id FROM users WHERE LOWER(username) = ?";
+                String checkSql = "SELECT id FROM users WHERE LOWER(email) = ?";
                 int userId = 0;
                 try (PreparedStatement check = conn.prepareStatement(checkSql)) {
-                    check.setString(1, u.getUsername().toLowerCase());
+                    String em = (u.getEmail() != null && !u.getEmail().isEmpty()) ? u.getEmail().toLowerCase() : (u.getUsername().toLowerCase() + "@disaster.gov.in");
+                    check.setString(1, em);
                     try (ResultSet rs = check.executeQuery()) {
                         if (rs.next()) {
-                            userId = rs.getInt("user_id");
+                            userId = rs.getInt("id");
                             u.setUserId(String.valueOf(userId));
+                            u.setId(userId);
                         }
                     }
                 }
 
                 // Insert into users if not existing
                 if (userId == 0) {
-                    String insertSql = "INSERT INTO users (username, phone) VALUES (?, ?)";
+                    String insertSql = "INSERT INTO users (full_name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)";
                     try (PreparedStatement pstmt = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-                        pstmt.setString(1, u.getUsername());
+                        pstmt.setString(1, u.getFullName() != null ? u.getFullName() : u.getUsername());
+                        pstmt.setString(2, u.getEmail() != null ? u.getEmail() : (u.getUsername() + "@disaster.gov.in"));
                         String phone = (u.getPhone() != null && !u.getPhone().isEmpty()) ? u.getPhone() : "9876543210";
-                        pstmt.setString(2, phone);
+                        pstmt.setString(3, phone);
+                        pstmt.setString(4, u.getPassword() != null ? u.getPassword() : "Pass123456");
+                        pstmt.setString(5, u.getRole() != null ? u.getRole() : "CITIZEN");
                         pstmt.executeUpdate();
                         try (ResultSet keys = pstmt.getGeneratedKeys()) {
                             if (keys.next()) {
                                 userId = keys.getInt(1);
                                 u.setUserId(String.valueOf(userId));
+                                u.setId(userId);
                             }
-                        }
-                    }
-                }
-
-                // Insert or update profile
-                if (userId > 0) {
-                    String profCheck = "SELECT profile_id FROM user_profiles WHERE user_id = ?";
-                    boolean hasProfile = false;
-                    try (PreparedStatement pCheck = conn.prepareStatement(profCheck)) {
-                        pCheck.setInt(1, userId);
-                        try (ResultSet rs = pCheck.executeQuery()) {
-                            if (rs.next()) hasProfile = true;
-                        }
-                    }
-                    if (!hasProfile) {
-                        String profSql = "INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (?, ?, ?, ?)";
-                        try (PreparedStatement profStmt = conn.prepareStatement(profSql)) {
-                            profStmt.setInt(1, userId);
-                            profStmt.setString(2, u.getFullName() != null ? u.getFullName() : u.getUsername());
-                            profStmt.setString(3, u.getBloodGroup() != null ? u.getBloodGroup() : "O+");
-                            profStmt.setString(4, u.getAddress() != null ? u.getAddress() : "Kerala Relief Zone");
-                            profStmt.executeUpdate();
                         }
                     }
                 }
@@ -566,48 +460,22 @@ public class DatabaseManager {
         try (Connection conn = getConnection()) {
             if (conn != null) {
                 int userId = resolveUserId(conn, sos.getUserId());
-                String insertSos = "INSERT INTO sos_requests (user_id, status, request_time) VALUES (?, 'Active', CURRENT_TIMESTAMP)";
+                String insertSos = "INSERT INTO sos_requests (user_id, latitude, longitude, status) VALUES (?, ?, ?, ?)";
                 int sosId = 0;
                 try (PreparedStatement ps = conn.prepareStatement(insertSos, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setInt(1, userId);
+                    ps.setDouble(2, sos.getLatitude());
+                    ps.setDouble(3, sos.getLongitude());
+                    ps.setString(4, sos.getStatus() != null ? sos.getStatus() : "DISPATCHED");
                     ps.executeUpdate();
                     try (ResultSet keys = ps.getGeneratedKeys()) {
                         if (keys.next()) {
                             sosId = keys.getInt(1);
                             sos.setSosId(String.valueOf(sosId));
+                            sos.setId(sosId);
                             memorySOS.put(sos.getSosId(), sos);
                         }
                     }
-                }
-
-                if (sosId > 0) {
-                    // Insert into gps_locations
-                    String insertGps = "INSERT INTO gps_locations (sos_id, latitude, longitude) VALUES (?, ?, ?)";
-                    try (PreparedStatement ps = conn.prepareStatement(insertGps)) {
-                        ps.setInt(1, sosId);
-                        ps.setDouble(2, sos.getLatitude());
-                        ps.setDouble(3, sos.getLongitude());
-                        ps.executeUpdate();
-                    }
-
-                    // Insert into rescue_status
-                    String insertRescue = "INSERT INTO rescue_status (sos_id, update_message, update_time) VALUES (?, ?, CURRENT_TIMESTAMP)";
-                    try (PreparedStatement ps = conn.prepareStatement(insertRescue)) {
-                        ps.setInt(1, sosId);
-                        String msg = sos.getDescription() != null && !sos.getDescription().isEmpty()
-                                ? sos.getDescription()
-                                : "Immediate distress signal broadcasted";
-                        ps.setString(2, msg);
-                        ps.executeUpdate();
-                    }
-
-                    // Insert notification
-                    String insertNotif = "INSERT INTO notifications (user_id, message, is_read) VALUES (?, ?, 0)";
-                    try (PreparedStatement ps = conn.prepareStatement(insertNotif)) {
-                        ps.setInt(1, userId);
-                        ps.setString(2, "SOS broadcast #" + sosId + " received by Unified Command");
-                        ps.executeUpdate();
-                    } catch (SQLException ignored) {}
                 }
                 return true;
             }
@@ -620,11 +488,7 @@ public class DatabaseManager {
     public List<SOSAlert> getActiveSOSAlerts() {
         List<SOSAlert> list = new ArrayList<>();
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
-            String sql = "SELECT s.sos_id, s.user_id, s.status, s.request_time, g.latitude, g.longitude, r.update_message "
-                    + "FROM sos_requests s "
-                    + "LEFT JOIN gps_locations g ON s.sos_id = g.sos_id "
-                    + "LEFT JOIN rescue_status r ON s.sos_id = r.sos_id "
-                    + "ORDER BY s.sos_id DESC";
+            String sql = "SELECT id, user_id, latitude, longitude, status, created_at FROM sos_requests ORDER BY id DESC";
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql);
                  ResultSet rs = pstmt.executeQuery()) {
@@ -633,15 +497,13 @@ public class DatabaseManager {
                     if (rs.wasNull()) lat = 9.9312;
                     double lon = rs.getDouble("longitude");
                     if (rs.wasNull()) lon = 76.2673;
-                    String desc = rs.getString("update_message");
-                    if (desc == null || desc.isEmpty()) desc = "Distress Broadcast";
                     SOSAlert s = new SOSAlert(
-                            String.valueOf(rs.getInt("sos_id")),
+                            String.valueOf(rs.getInt("id")),
                             String.valueOf(rs.getInt("user_id")),
                             lat,
                             lon,
                             "CRITICAL",
-                            desc
+                            "Emergency SOS Distress"
                     );
                     s.setStatus(rs.getString("status"));
                     s.setRespondersCount(1);
@@ -653,7 +515,7 @@ public class DatabaseManager {
             }
         }
         for (SOSAlert s : memorySOS.values()) {
-            if ("Active".equalsIgnoreCase(s.getStatus())) list.add(s);
+            if ("Active".equalsIgnoreCase(s.getStatus()) || "DISPATCHED".equalsIgnoreCase(s.getStatus())) list.add(s);
         }
         return list;
     }
@@ -667,15 +529,9 @@ public class DatabaseManager {
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
             try {
                 int id = Integer.parseInt(sosId.replace("SOS-", "").trim());
-                String sql = "UPDATE sos_requests SET status = 'Acknowledged' WHERE sos_id = ?";
+                String sql = "UPDATE sos_requests SET status = 'Acknowledged' WHERE id = ?";
                 try (Connection conn = getConnection();
                      PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                    pstmt.setInt(1, id);
-                    pstmt.executeUpdate();
-                }
-                String sqlRescue = "UPDATE rescue_status SET update_message = CONCAT(update_message, ' [ACKNOWLEDGED by unit]') WHERE sos_id = ?";
-                try (Connection conn = getConnection();
-                     PreparedStatement pstmt = conn.prepareStatement(sqlRescue)) {
                     pstmt.setInt(1, id);
                     pstmt.executeUpdate();
                 }
@@ -698,26 +554,17 @@ public class DatabaseManager {
         try (Connection conn = getConnection()) {
             if (conn != null) {
                 int userId = resolveUserId(conn, rep.getUserId());
-                int sev = 5;
-                if (rep.getSeverity() != null) {
-                    try {
-                        sev = Integer.parseInt(rep.getSeverity());
-                    } catch (NumberFormatException e) {
-                        String s = rep.getSeverity().toUpperCase();
-                        if (s.contains("CRIT")) sev = 10;
-                        else if (s.contains("HIGH")) sev = 8;
-                        else if (s.contains("MED")) sev = 5;
-                        else sev = 3;
-                    }
-                }
-                String insertSql = "INSERT INTO incident_reports (user_id, disaster_type, severity_level, description, status) VALUES (?, ?, ?, ?, ?)";
+                String insertSql = "INSERT INTO incident_reports (user_id, hazard_type, landmark, details, latitude, longitude, media_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                 int incId = 0;
                 try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setInt(1, userId);
-                    ps.setString(2, rep.getDisasterType() != null ? rep.getDisasterType() : "General");
-                    ps.setInt(3, sev);
-                    ps.setString(4, rep.getDescription() != null ? rep.getDescription() : "Incident reported");
-                    ps.setString(5, rep.getStatus() != null ? rep.getStatus() : "Reported");
+                    ps.setString(2, rep.getHazardType() != null ? rep.getHazardType() : (rep.getDisasterType() != null ? rep.getDisasterType() : "General"));
+                    ps.setString(3, rep.getLandmark() != null ? rep.getLandmark() : "");
+                    ps.setString(4, rep.getDetails() != null ? rep.getDetails() : (rep.getDescription() != null ? rep.getDescription() : "Incident reported"));
+                    ps.setDouble(5, rep.getLatitude());
+                    ps.setDouble(6, rep.getLongitude());
+                    ps.setString(7, rep.getMediaPath() != null ? rep.getMediaPath() : "");
+                    ps.setString(8, rep.getStatus() != null ? rep.getStatus() : "REPORTED");
                     ps.executeUpdate();
                     try (ResultSet keys = ps.getGeneratedKeys()) {
                         if (keys.next()) {
@@ -726,16 +573,6 @@ public class DatabaseManager {
                             memoryReports.put(rep.getReportId(), rep);
                         }
                     }
-                }
-
-                if (incId > 0) {
-                    // Log notification
-                    String insertNotif = "INSERT INTO notifications (user_id, message, is_read) VALUES (?, ?, 0)";
-                    try (PreparedStatement ps = conn.prepareStatement(insertNotif)) {
-                        ps.setInt(1, userId);
-                        ps.setString(2, "Incident report #" + incId + " (" + rep.getDisasterType() + ") registered");
-                        ps.executeUpdate();
-                    } catch (SQLException ignored) {}
                 }
                 return true;
             }
@@ -754,7 +591,7 @@ public class DatabaseManager {
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
             try {
                 int id = Integer.parseInt(reportId.replace("INC-", "").trim());
-                String sql = "UPDATE incident_reports SET status = 'Verified' WHERE incident_id = ?";
+                String sql = "UPDATE incident_reports SET status = 'Verified' WHERE id = ?";
                 try (Connection conn = getConnection();
                      PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setInt(1, id);
@@ -793,13 +630,13 @@ public class DatabaseManager {
     public List<ContactEntry> getAllEmergencyContacts() {
         List<ContactEntry> list = new ArrayList<>();
         if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
-            String sql = "SELECT contact_id, user_id, contact_name, contact_phone FROM emergency_contacts ORDER BY contact_id ASC";
+            String sql = "SELECT id, user_id, contact_name, contact_phone FROM emergency_contacts ORDER BY id ASC";
             try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql);
                  ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     list.add(new ContactEntry(
-                            rs.getInt("contact_id"),
+                            rs.getInt("id"),
                             rs.getInt("user_id"),
                             rs.getString("contact_name"),
                             rs.getString("contact_phone")
@@ -880,39 +717,20 @@ public class DatabaseManager {
     }
 
     private User mapUser(ResultSet rs) throws SQLException {
-        String id = String.valueOf(rs.getInt("user_id"));
-        String username = rs.getString("username");
-        String phone = rs.getString("phone");
+        int id = rs.getInt("id");
         String fullName = rs.getString("full_name");
-        String blood = rs.getString("blood_group");
-        String addr = rs.getString("address");
+        String email = rs.getString("email");
+        String phone = rs.getString("phone");
+        String role = rs.getString("role");
+        String password = rs.getString("password");
 
-        String email = username;
-        try {
-            String dbEmail = rs.getString("email");
-            if (dbEmail != null && !dbEmail.trim().isEmpty()) {
-                email = dbEmail;
-            }
-        } catch (Exception ignored) {}
-
-        if (email == null || !email.contains("@")) {
-            email = (username != null ? username : "user") + "@disaster.gov.in";
-        }
-        email = cleanEmail(email);
-
-        User u = new User(
-                id,
-                username,
-                email,
-                "CITIZEN",
-                9.9312,
-                76.2673
-        );
+        User u = new User(String.valueOf(id), fullName, email, role != null ? role : "CITIZEN", 9.9312, 76.2673);
+        u.setId(id);
+        u.setFullName(fullName != null ? fullName : "");
+        u.setEmail(email != null ? email : "");
         u.setPhone(phone != null ? phone : "");
-        u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (username.contains("@") ? username.substring(0, username.indexOf('@')) : username));
-        u.setBloodGroup(blood != null ? blood : "O+");
-        u.setAddress(addr != null ? addr : "Kerala");
-        u.setPasswordHash(hashPassword("Pass123456"));
+        u.setRole(role != null ? role : "CITIZEN");
+        u.setPassword(password != null ? password : "");
         u.setActive(true);
         return u;
     }

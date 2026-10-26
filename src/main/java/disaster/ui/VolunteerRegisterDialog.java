@@ -243,10 +243,10 @@ public class VolunteerRegisterDialog extends JDialog {
             if (u.getPhone() != null) phone = u.getPhone().trim();
         }
 
-        // Direct DB query on users & user_profiles to ensure real legal name & clean email are retrieved
+        // Direct DB query on users to ensure real legal name & clean email are retrieved
         try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
             if (conn != null) {
-                String q = "SELECT u.username, u.phone, p.full_name FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id WHERE u.user_id = ?";
+                String q = "SELECT full_name, email, phone FROM users WHERE id = ?";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(q)) {
                     ps.setInt(1, uid);
                     try (java.sql.ResultSet rs = ps.executeQuery()) {
@@ -259,9 +259,9 @@ public class VolunteerRegisterDialog extends JDialog {
                             if (ph != null && !ph.trim().isEmpty()) {
                                 phone = ph.trim();
                             }
-                            String un = rs.getString("username");
-                            if (email.isEmpty() && un != null && un.contains("@")) {
-                                email = disaster.backend.DatabaseManager.cleanEmail(un.trim());
+                            String em = rs.getString("email");
+                            if (email.isEmpty() && em != null && em.contains("@")) {
+                                email = disaster.backend.DatabaseManager.cleanEmail(em.trim());
                             }
                         }
                     }
@@ -418,23 +418,15 @@ public class VolunteerRegisterDialog extends JDialog {
                 username, name, email, phone, district, skill, idProofPath, certificatePath
         );
 
-        // Also persist to DatabaseManager MySQL / H2 if available
-        try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
-            if (conn != null) {
-                String sql = "INSERT INTO volunteers (username, name, email, phone, district, skill, id_proof, certificate, status) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending')";
-                try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setString(1, username);
-                    ps.setString(2, name);
-                    ps.setString(3, email);
-                    ps.setString(4, phone);
-                    ps.setString(5, district);
-                    ps.setString(6, skill);
-                    ps.setString(7, idProofPath);
-                    ps.setString(8, certificatePath);
-                    ps.executeUpdate();
-                }
+        // Also persist to database via VolunteerDAO
+        try {
+            int uid = 1;
+            if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
+                try {
+                    uid = Integer.parseInt(disaster.service.UserSession.getCurrentUser().getUserId());
+                } catch (Exception ignored) {}
             }
+            new disaster.dao.VolunteerDAO().registerVolunteer(uid, district, skill, "PENDING", "PENDING");
         } catch (Exception ex) {
             System.out.println("Notice: Direct DB volunteer record fallback: " + ex.getMessage());
         }

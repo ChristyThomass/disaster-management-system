@@ -439,7 +439,7 @@ public class AdminFrame extends BaseFrame {
             // Update in DB if online
             try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
                 if (conn != null) {
-                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET status='Approved' WHERE id=?")) {
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET approval_status='Approved' WHERE id=?")) {
                         ps.setInt(1, id);
                         ps.executeUpdate();
                     }
@@ -480,7 +480,7 @@ public class AdminFrame extends BaseFrame {
             dataManager.rejectVolunteer(id);
             try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
                 if (conn != null) {
-                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET status='Rejected' WHERE id=?")) {
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET approval_status='Rejected' WHERE id=?")) {
                         ps.setInt(1, id);
                         ps.executeUpdate();
                     }

@@ -67,8 +67,7 @@ public class ProfileFrame extends BaseFrame {
         // Load live profile details directly from disaster_db by activeUserId
         try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
             if (conn != null) {
-                String q = "SELECT u.username, u.phone, p.full_name, p.blood_group, p.address "
-                         + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id WHERE u.user_id = ?";
+                String q = "SELECT full_name, phone FROM users WHERE id = ?";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(q)) {
                     ps.setInt(1, activeUserId);
                     try (java.sql.ResultSet rs = ps.executeQuery()) {
@@ -77,10 +76,6 @@ public class ProfileFrame extends BaseFrame {
                             if (fn != null && !fn.trim().isEmpty()) curName = fn.trim();
                             String ph = rs.getString("phone");
                             if (ph != null && !ph.trim().isEmpty()) curPhone = ph.trim();
-                            String bg = rs.getString("blood_group");
-                            if (bg != null && !bg.trim().isEmpty()) curBlood = bg.trim();
-                            String ad = rs.getString("address");
-                            if (ad != null && !ad.trim().isEmpty()) curAddr = ad.trim();
                         }
                     }
                 }
@@ -220,43 +215,14 @@ public class ProfileFrame extends BaseFrame {
         boolean updated = false;
         try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
             if (conn != null) {
-                // Update phone in users
-                try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE users SET phone = ? WHERE user_id = ?")) {
-                    ps.setString(1, cleanPhone);
-                    ps.setInt(2, userId);
+                // Update full_name and phone in users table
+                try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE users SET full_name = ?, phone = ? WHERE id = ?")) {
+                    ps.setString(1, name);
+                    ps.setString(2, cleanPhone);
+                    ps.setInt(3, userId);
                     ps.executeUpdate();
+                    updated = true;
                 }
-
-                // Check profile
-                String chk = "SELECT profile_id FROM user_profiles WHERE user_id = ?";
-                boolean hasProf = false;
-                try (java.sql.PreparedStatement ps = conn.prepareStatement(chk)) {
-                    ps.setInt(1, userId);
-                    try (java.sql.ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) hasProf = true;
-                    }
-                }
-
-                if (hasProf) {
-                    String upSql = "UPDATE user_profiles SET full_name = ?, blood_group = ?, address = ? WHERE user_id = ?";
-                    try (java.sql.PreparedStatement ps = conn.prepareStatement(upSql)) {
-                        ps.setString(1, name);
-                        ps.setString(2, blood);
-                        ps.setString(3, addr);
-                        ps.setInt(4, userId);
-                        ps.executeUpdate();
-                    }
-                } else {
-                    String inSql = "INSERT INTO user_profiles (user_id, full_name, blood_group, address) VALUES (?, ?, ?, ?)";
-                    try (java.sql.PreparedStatement ps = conn.prepareStatement(inSql)) {
-                        ps.setInt(1, userId);
-                        ps.setString(2, name);
-                        ps.setString(3, blood);
-                        ps.setString(4, addr);
-                        ps.executeUpdate();
-                    }
-                }
-                updated = true;
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -271,7 +237,7 @@ public class ProfileFrame extends BaseFrame {
         }
 
         String dbNotice = updated
-                ? "✓ Profile successfully saved to MySQL disaster_db (users & user_profiles)"
+                ? "✓ Profile successfully saved to MySQL disaster_db (users)"
                 : "ℹ Saved locally (XAMPP MySQL offline)";
 
         JOptionPane.showMessageDialog(
