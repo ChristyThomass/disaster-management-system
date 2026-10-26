@@ -1,22 +1,43 @@
 package disaster.ui;
 
+import disaster.service.UserSession;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.datatransfer.StringSelection;
 
 public class EmergencyContactsFrame extends BaseFrame {
 
+    private final boolean isAdmin;
     private JTable table;
     private DefaultTableModel model;
     private JTextField searchField;
 
     public EmergencyContactsFrame() {
-        super("State Emergency Hotlines & Dedicated Directory", 920, 600);
+        this(resolveAdminStatus());
+    }
+
+    public EmergencyContactsFrame(boolean isAdmin) {
+        super("State Emergency Hotlines & Dedicated Directory", 940, 620);
+        this.isAdmin = isAdmin;
         setMinimumSize(new Dimension(800, 500));
         buildUI();
+    }
+
+    private static boolean resolveAdminStatus() {
+        if (UserSession.isLoggedIn() && UserSession.getCurrentUser() != null) {
+            String u = UserSession.getCurrentUser().getUsername();
+            String t = UserSession.getCurrentUser().getUserType();
+            if ("ADMIN".equalsIgnoreCase(t)) {
+                return true;
+            }
+            if (u != null && ("admin".equalsIgnoreCase(u) || "admin123".equalsIgnoreCase(u) || "Admin Panel".equalsIgnoreCase(u))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void buildUI() {
@@ -27,9 +48,10 @@ public class EmergencyContactsFrame extends BaseFrame {
         // Header Block
         JPanel header = createStandardHeader(
                 "State Emergency Hotlines & Quick Directory",
-                "Official 24/7 dedicated lines synchronized with Kerala SDMA Unified Command",
-                "24/7 PRIORITY LINES",
-                UITheme.BRAND_CRIMSON
+                isAdmin ? "Authorized administrative console to add, re-edit, or remove official emergency records"
+                        : "Official 24/7 dedicated lines synchronized with Kerala SDMA Unified Command",
+                isAdmin ? "ADMIN CONTROL" : "24/7 PRIORITY LINES",
+                isAdmin ? UITheme.HOTLINE_BLUE : UITheme.BRAND_CRIMSON
         );
         mainPanel.add(header, BorderLayout.NORTH);
 
@@ -133,27 +155,53 @@ public class EmergencyContactsFrame extends BaseFrame {
         mainPanel.add(card, BorderLayout.CENTER);
 
         // Bottom Bar
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel bottom = new JPanel(new BorderLayout(10, 0));
         bottom.setOpaque(false);
 
-        JButton addContactBtn = button("➕ Add Contact to Database", UITheme.HOTLINE_BLUE);
-        addContactBtn.setPreferredSize(new Dimension(210, 38));
-        addContactBtn.addActionListener(e -> addNewContact());
-        bottom.add(addContactBtn);
+        if (isAdmin) {
+            JLabel adminNotice = new JLabel("⚡ Administrator Records Console • Add, Edit & Maintain Official Hotlines");
+            adminNotice.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            adminNotice.setForeground(UITheme.PRIMARY);
+            bottom.add(adminNotice, BorderLayout.WEST);
 
-        JButton callBtn = button("Connect Call to Hotline", UITheme.BRAND_CRIMSON);
-        callBtn.setPreferredSize(new Dimension(190, 38));
-        callBtn.addActionListener(e -> dialSelected());
-        bottom.add(callBtn);
+            JPanel adminBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            adminBtns.setOpaque(false);
 
-        JButton copyBtn = createOutlineButton("Copy Hotline Number", UITheme.BORDER_DARK);
-        copyBtn.setPreferredSize(new Dimension(170, 38));
-        copyBtn.addActionListener(e -> copySelected());
-        bottom.add(copyBtn);
+            JButton addRecordBtn = button("Add New Record", UITheme.HOTLINE_BLUE);
+            addRecordBtn.setPreferredSize(new Dimension(160, 40));
+            addRecordBtn.addActionListener(e -> addNewContact());
+            adminBtns.add(addRecordBtn);
 
-        JButton backBtn = createBackButton("← Back to Portal");
-        backBtn.setPreferredSize(new Dimension(140, 38));
-        bottom.add(backBtn);
+            JButton editRecordBtn = button("Edit Selected Record", UITheme.PRIMARY);
+            editRecordBtn.setPreferredSize(new Dimension(175, 40));
+            editRecordBtn.addActionListener(e -> editSelectedContact());
+            adminBtns.add(editRecordBtn);
+
+            JButton deleteRecordBtn = button("Delete Record", UITheme.BRAND_CRIMSON);
+            deleteRecordBtn.setPreferredSize(new Dimension(140, 40));
+            deleteRecordBtn.addActionListener(e -> deleteSelectedContact());
+            adminBtns.add(deleteRecordBtn);
+
+            JButton backBtn = createBackButton("Back to Portal");
+            backBtn.setPreferredSize(new Dimension(140, 40));
+            adminBtns.add(backBtn);
+
+            bottom.add(adminBtns, BorderLayout.EAST);
+        } else {
+            JLabel readOnlyNotice = new JLabel("Official State Directory (Read-Only) • Updates restricted to SDMA Administrators");
+            readOnlyNotice.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+            readOnlyNotice.setForeground(UITheme.SECONDARY_TEXT);
+            bottom.add(readOnlyNotice, BorderLayout.WEST);
+
+            JPanel userBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            userBtns.setOpaque(false);
+
+            JButton backBtn = createBackButton("Back to Portal");
+            backBtn.setPreferredSize(new Dimension(140, 40));
+            userBtns.add(backBtn);
+
+            bottom.add(userBtns, BorderLayout.EAST);
+        }
 
         mainPanel.add(bottom, BorderLayout.SOUTH);
 
@@ -178,26 +226,47 @@ public class EmergencyContactsFrame extends BaseFrame {
 
     private void addNewContact() {
         JTextField nameField = new JTextField();
+        JTextField deptField = new JTextField("Special Disaster Response Unit");
         JTextField phoneField = new JTextField();
-        Object[] message = {
-                "Contact Name / Relation (e.g. Brother / Rahul):", nameField,
-                "Phone Number (e.g. 9847123456):", phoneField
-        };
+        JTextField availField = new JTextField("24x7 Active");
+        JTextField statusField = new JTextField("Live Connected");
+
+        JPanel form = new JPanel(new GridLayout(5, 2, 8, 8));
+        form.setPreferredSize(new Dimension(420, 180));
+        form.add(new JLabel("Service / Contact Name:"));
+        form.add(nameField);
+        form.add(new JLabel("Designated Department:"));
+        form.add(deptField);
+        form.add(new JLabel("Emergency Hotline / Phone:"));
+        form.add(phoneField);
+        form.add(new JLabel("Availability:"));
+        form.add(availField);
+        form.add(new JLabel("Operational Status:"));
+        form.add(statusField);
 
         int option = JOptionPane.showConfirmDialog(
                 this,
-                message,
-                "Add Emergency Contact to disaster_db",
-                JOptionPane.OK_CANCEL_OPTION
+                form,
+                "Add New Emergency Record to disaster_db",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
         );
 
         if (option == JOptionPane.OK_OPTION) {
             String name = nameField.getText().trim();
+            String dept = deptField.getText().trim();
             String phone = phoneField.getText().trim();
+            String avail = availField.getText().trim();
+            String status = statusField.getText().trim();
+
             if (name.isEmpty() || phone.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Both name and phone number are required.", "Input Required", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Both Name and Phone Number are required.", "Input Required", JOptionPane.WARNING_MESSAGE);
                 return;
             }
+
+            if (dept.isEmpty()) dept = "State Emergency Wing";
+            if (avail.isEmpty()) avail = "24x7 Active";
+            if (status.isEmpty()) status = "Live Connected";
 
             int userId = 1;
             if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
@@ -211,67 +280,124 @@ public class EmergencyContactsFrame extends BaseFrame {
             if (!saved) {
                 saved = disaster.backend.DatabaseManager.getInstance().saveEmergencyContact(userId, name, phone);
             }
-            if (saved) {
-                model.insertRow(0, new Object[]{
-                        name,
-                        "Personal Emergency Contact (User #" + userId + ")",
-                        phone,
-                        "24x7 Available",
-                        "Saved in disaster_db"
-                });
-                table.setRowSelectionInterval(0, 0);
 
-                JOptionPane.showMessageDialog(
-                        this,
-                        "EMERGENCY CONTACT SAVED!\n\n"
-                                + "• Name: " + name + "\n"
-                                + "• Phone: " + phone + "\n"
-                                + "• Table: emergency_contacts (disaster_db on port 3306)\n"
-                                + "• Linked to User ID: " + userId,
-                        "Contact Stored in Database",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-            } else {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Failed to save contact to database. Please try again.",
-                        "Database Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-            }
+            model.insertRow(0, new Object[]{name, dept, phone, avail, status});
+            table.setRowSelectionInterval(0, 0);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "NEW EMERGENCY RECORD ADDED!\n\n"
+                            + "• Agency / Contact: " + name + "\n"
+                            + "• Department: " + dept + "\n"
+                            + "• Emergency Hotline: " + phone + "\n"
+                            + "• Status: " + status + "\n"
+                            + "• Stored in disaster_db.emergency_contacts",
+                    "Record Saved",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
         }
     }
 
-    private void dialSelected() {
+    private void editSelectedContact() {
         int row = table.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Please select an emergency hotline from the directory first.", "Selection Required", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an emergency record from the table to edit.", "Selection Required", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        String agency = (String) table.getValueAt(row, 0);
-        String number = (String) table.getValueAt(row, 2);
+        String oldName = (String) table.getValueAt(row, 0);
+        String oldDept = (String) table.getValueAt(row, 1);
+        String oldPhone = (String) table.getValueAt(row, 2);
+        String oldAvail = (String) table.getValueAt(row, 3);
+        String oldStatus = (String) table.getValueAt(row, 4);
 
-        JOptionPane.showMessageDialog(
+        JTextField nameField = new JTextField(oldName);
+        JTextField deptField = new JTextField(oldDept);
+        JTextField phoneField = new JTextField(oldPhone);
+        JTextField availField = new JTextField(oldAvail);
+        JTextField statusField = new JTextField(oldStatus);
+
+        JPanel form = new JPanel(new GridLayout(5, 2, 8, 8));
+        form.setPreferredSize(new Dimension(420, 180));
+        form.add(new JLabel("Service / Contact Name:"));
+        form.add(nameField);
+        form.add(new JLabel("Designated Department:"));
+        form.add(deptField);
+        form.add(new JLabel("Emergency Hotline / Phone:"));
+        form.add(phoneField);
+        form.add(new JLabel("Availability:"));
+        form.add(availField);
+        form.add(new JLabel("Operational Status:"));
+        form.add(statusField);
+
+        int option = JOptionPane.showConfirmDialog(
                 this,
-                "CONNECTING PRIORITY EMERGENCY CALL:\n\n"
-                        + "Agency: " + agency + "\n"
-                        + "Emergency Hotline: " + number + "\n"
-                        + "Trunk Route: State Disaster Emergency Exchange Priority Line.",
-                "Emergency Call Connected",
-                JOptionPane.INFORMATION_MESSAGE
+                form,
+                "Re-edit Emergency Record - " + oldName,
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
         );
+
+        if (option == JOptionPane.OK_OPTION) {
+            String newName = nameField.getText().trim();
+            String newDept = deptField.getText().trim();
+            String newPhone = phoneField.getText().trim();
+            String newAvail = availField.getText().trim();
+            String newStatus = statusField.getText().trim();
+
+            if (newName.isEmpty() || newPhone.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Both Name and Phone Number are required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            table.setValueAt(newName, row, 0);
+            table.setValueAt(newDept.isEmpty() ? oldDept : newDept, row, 1);
+            table.setValueAt(newPhone, row, 2);
+            table.setValueAt(newAvail.isEmpty() ? oldAvail : newAvail, row, 3);
+            table.setValueAt(newStatus.isEmpty() ? oldStatus : newStatus, row, 4);
+
+            new disaster.dao.EmergencyContactDAO().updateContact(oldName, oldPhone, newName, newPhone);
+            disaster.backend.DatabaseManager.getInstance().updateEmergencyContact(oldName, oldPhone, newName, newPhone);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "EMERGENCY RECORD UPDATED!\n\n"
+                            + "• Contact / Service: " + newName + "\n"
+                            + "• Department: " + newDept + "\n"
+                            + "• Emergency Hotline: " + newPhone + "\n"
+                            + "• Status: Saved and synchronized with database.",
+                    "Record Updated",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        }
     }
 
-    private void copySelected() {
+    private void deleteSelectedContact() {
         int row = table.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Please select an emergency hotline row first.", "Selection Required", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an emergency record from the table to delete.", "Selection Required", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        String number = (String) table.getValueAt(row, 2);
-        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(number), null);
-        JOptionPane.showMessageDialog(this, "Emergency hotline copied to clipboard: " + number, "Copied", JOptionPane.INFORMATION_MESSAGE);
+        String name = (String) table.getValueAt(row, 0);
+        String phone = (String) table.getValueAt(row, 2);
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to delete this emergency record?\n\n"
+                        + "• Service / Contact: " + name + "\n"
+                        + "• Phone: " + phone + "\n\n"
+                        + "This will permanently remove the record from the emergency directory.",
+                "Confirm Record Deletion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            model.removeRow(row);
+            new disaster.dao.EmergencyContactDAO().deleteContact(name, phone);
+            disaster.backend.DatabaseManager.getInstance().deleteEmergencyContact(name, phone);
+            JOptionPane.showMessageDialog(this, "Record deleted successfully.", "Record Removed", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 }

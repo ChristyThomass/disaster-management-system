@@ -20,6 +20,14 @@ public class DashboardFrame extends BaseFrame {
         return activeInstance;
     }
 
+    @Override
+    public void dispose() {
+        if (activeInstance == this) {
+            activeInstance = null;
+        }
+        super.dispose();
+    }
+
     public DashboardFrame() {
         this("Demo User");
     }
@@ -32,10 +40,15 @@ public class DashboardFrame extends BaseFrame {
         this.username = username;
         disaster.service.UserSession.addListener(u -> {
             if (u != null) {
-                updateSessionUser(u.getUsername());
+                String name = (u.getFullName() != null && !u.getFullName().trim().isEmpty() && !u.getFullName().contains("@"))
+                        ? u.getFullName().trim() : u.getUsername();
+                updateSessionUser(name);
             } else {
                 updateSessionUser("Demo User");
             }
+        });
+        disaster.service.AdminDataManager.getInstance().addChangeListener(() -> {
+            SwingUtilities.invokeLater(this::refreshKpiCounters);
         });
         buildUI();
         startMarquee();
@@ -142,7 +155,6 @@ public class DashboardFrame extends BaseFrame {
 
         tabsPanel.add(createNavTab("Report", false, e -> openPopup(new IncidentReportFrame())));
         tabsPanel.add(createNavTab("Volunteers", false, e -> openPopup(new VolunteerFrame())));
-        tabsPanel.add(createNavTab("Inventory", false, e -> openPopup(new InventoryFrame())));
         tabsPanel.add(createNavTab("Records", false, e -> openPopup(new EmergencyContactsFrame())));
 
         navBar.add(tabsPanel, BorderLayout.CENTER);
@@ -214,7 +226,7 @@ public class DashboardFrame extends BaseFrame {
 
         JButton helpBtn = createOutlinedButton("Request Help", UITheme.HOTLINE_BLUE, UITheme.HOTLINE_BLUE);
         helpBtn.setPreferredSize(new Dimension(140, 40));
-        helpBtn.addActionListener(e -> openPopup(new SOSFrame(username)));
+        helpBtn.addActionListener(e -> EmergencySOSDialog.showSOS(this, username));
         heroBtnRow.add(helpBtn);
 
         heroCard.add(heroBtnRow);
@@ -222,42 +234,37 @@ public class DashboardFrame extends BaseFrame {
 
         contentContainer.add(Box.createVerticalStrut(18));
 
-        // ---------------- SECTION 2: 4 METRIC KPI CARDS ----------------
-        JPanel kpiRow = new JPanel(new GridLayout(1, 4, 14, 0));
+        // ---------------- SECTION 2: 3 CRITICAL METRIC KPI CARDS ----------------
+        JPanel kpiRow = new JPanel(new GridLayout(1, 3, 14, 0));
         kpiRow.setOpaque(false);
         kpiRow.setMaximumSize(new Dimension(Short.MAX_VALUE, 135));
         kpiRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        shelterKpiLbl = new JLabel(String.valueOf(disaster.service.AdminDataManager.getInstance().getShelterHomes().size()));
         kpiRow.add(createKpiBox(
                 "KERALA RELIEF CAMPS",
                 "LIVE KERALA MAP",
-                String.valueOf(disaster.service.AdminDataManager.getInstance().getShelterHomes().size()),
+                shelterKpiLbl,
                 "Occupancy & Shelter Zones",
                 e -> openPopup(new GPSFrame())
         ));
 
+        alertKpiLbl = new JLabel(String.valueOf(disaster.service.AdminDataManager.getInstance().getAlerts().size()));
         kpiRow.add(createKpiBox(
                 "ACTIVE ALERTS",
                 "CRITICAL BULLETINS",
-                String.valueOf(disaster.service.AdminDataManager.getInstance().getAlerts().size()),
+                alertKpiLbl,
                 "Code Red & Warning Notices",
                 e -> openPopup(new AlertFrame())
         ));
 
+        volunteerKpiLbl = new JLabel(String.valueOf(disaster.service.AdminDataManager.getInstance().getVolunteers().size()));
         kpiRow.add(createKpiBox(
                 "CERTIFIED RESPONDERS",
                 "DEPLOYMENT READY",
-                String.valueOf(disaster.service.AdminDataManager.getInstance().getVolunteers().size()),
+                volunteerKpiLbl,
                 "Active Field Volunteers",
                 e -> openPopup(new VolunteerFrame())
-        ));
-
-        kpiRow.add(createKpiBox(
-                "WAREHOUSE SUPPLIES",
-                "LOGISTICS DEPOT",
-                String.valueOf(disaster.service.AdminDataManager.getInstance().getInventoryItems().size()),
-                "Medical, Rations & Equipment",
-                e -> openPopup(new InventoryFrame())
         ));
 
         contentContainer.add(kpiRow);
@@ -395,7 +402,23 @@ public class DashboardFrame extends BaseFrame {
         return btn;
     }
 
-    private JPanel createKpiBox(String title, String badgeText, String count, String subtitle, java.awt.event.ActionListener action) {
+    private JLabel shelterKpiLbl;
+    private JLabel alertKpiLbl;
+    private JLabel volunteerKpiLbl;
+
+    public void refreshKpiCounters() {
+        if (shelterKpiLbl != null) {
+            shelterKpiLbl.setText(String.valueOf(disaster.service.AdminDataManager.getInstance().getShelterHomes().size()));
+        }
+        if (alertKpiLbl != null) {
+            alertKpiLbl.setText(String.valueOf(disaster.service.AdminDataManager.getInstance().getAlerts().size()));
+        }
+        if (volunteerKpiLbl != null) {
+            volunteerKpiLbl.setText(String.valueOf(disaster.service.AdminDataManager.getInstance().getVolunteers().size()));
+        }
+    }
+
+    private JPanel createKpiBox(String title, String badgeText, JLabel countLbl, String subtitle, java.awt.event.ActionListener action) {
         JPanel card = createCard(8);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(new EmptyBorder(14, 16, 14, 16));
@@ -417,8 +440,7 @@ public class DashboardFrame extends BaseFrame {
 
         card.add(Box.createVerticalStrut(8));
 
-        // Big Count
-        JLabel countLbl = new JLabel(count);
+        // Big Count Label
         countLbl.setFont(UITheme.KPI_NUMBER_FONT);
         countLbl.setForeground(UITheme.BRAND_CRIMSON);
         countLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -520,6 +542,24 @@ public class DashboardFrame extends BaseFrame {
     public void openPopup(JFrame frame) {
         if (frame != null) {
             frame.setLocationRelativeTo(this);
+            // Only hide main dashboard when navigating to LoginFrame or RegisterFrame
+            if (frame instanceof LoginFrame || frame instanceof RegisterFrame) {
+                this.setVisible(false);
+                frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent e) {
+                        DashboardFrame df = getActiveInstance();
+                        if (df != null && disaster.service.UserSession.isLoggedIn()) {
+                            df.setVisible(true);
+                            df.toFront();
+                            df.requestFocus();
+                        }
+                    }
+                });
+            } else {
+                // Main dashboard ALWAYS remains open and visible in the background
+                this.setVisible(true);
+            }
             frame.setVisible(true);
             frame.toFront();
             frame.requestFocus();
@@ -546,7 +586,7 @@ public class DashboardFrame extends BaseFrame {
         JButton sosBtn = button("EMERGENCY SOS", UITheme.BRAND_CRIMSON);
         sosBtn.setPreferredSize(new Dimension(130, 34));
         sosBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        sosBtn.addActionListener(e -> openPopup(new SOSFrame(username)));
+        sosBtn.addActionListener(e -> EmergencySOSDialog.showSOS(this, username));
         rightActions.add(sosBtn);
 
         if ("Demo User".equalsIgnoreCase(username)) {
@@ -556,38 +596,45 @@ public class DashboardFrame extends BaseFrame {
             signInBtn.addActionListener(e -> openPopup(new LoginFrame()));
             rightActions.add(signInBtn);
         } else {
-            JButton userBtn = createOutlinedButton(username, UITheme.BRAND_CRIMSON, UITheme.BRAND_CRIMSON);
-            int textW = userBtn.getFontMetrics(new Font("Segoe UI", Font.BOLD, 12)).stringWidth(username);
-            userBtn.setPreferredSize(new Dimension(Math.max(110, textW + 28), 34));
-            userBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            userBtn.setToolTipText("User Profile & Options");
+            // Circular profile avatar with first letter of username
+            CircleAvatarButton userBtn = new CircleAvatarButton(username);
 
-            // Profile popup menu containing Profile/Admin and Sign Out
+            // Profile popup menu containing Manage My Account and Sign Out
             JPopupMenu userMenu = new JPopupMenu();
-            userMenu.setBorder(BorderFactory.createLineBorder(UITheme.BORDER, 1));
+            userMenu.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(UITheme.BORDER, 1),
+                    new EmptyBorder(4, 0, 4, 0)
+            ));
             userMenu.setBackground(Color.WHITE);
 
             boolean isAdmin = "Admin Panel".equalsIgnoreCase(username);
-            JMenuItem profileItem = new JMenuItem(isAdmin ? "  ⚙️ Admin Panel" : "  👤 My Profile");
-            profileItem.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            profileItem.setBackground(Color.WHITE);
-            profileItem.setForeground(UITheme.TEXT);
-            profileItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            profileItem.addActionListener(e -> {
+            JMenuItem accountItem = new JMenuItem(
+                    isAdmin ? "Admin Panel" : "Manage My Account",
+                    new SettingsIcon(16, UITheme.TEXT)
+            );
+            accountItem.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            accountItem.setBackground(Color.WHITE);
+            accountItem.setForeground(UITheme.TEXT);
+            accountItem.setIconTextGap(10);
+            accountItem.setBorder(new EmptyBorder(8, 14, 8, 18));
+            accountItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            accountItem.addActionListener(e -> {
                 if (isAdmin) {
                     new AdminFrame().setVisible(true);
                 } else {
                     openPopup(new ProfileFrame(username));
                 }
             });
-            userMenu.add(profileItem);
+            userMenu.add(accountItem);
 
             userMenu.addSeparator();
 
-            JMenuItem signOutItem = new JMenuItem("  🚪 Sign Out");
+            JMenuItem signOutItem = new JMenuItem("Sign Out", new SignOutIcon(16, UITheme.BRAND_CRIMSON));
             signOutItem.setFont(new Font("Segoe UI", Font.BOLD, 13));
             signOutItem.setBackground(Color.WHITE);
             signOutItem.setForeground(UITheme.BRAND_CRIMSON);
+            signOutItem.setIconTextGap(10);
+            signOutItem.setBorder(new EmptyBorder(8, 14, 8, 18));
             signOutItem.setCursor(new Cursor(Cursor.HAND_CURSOR));
             signOutItem.addActionListener(e -> {
                 int res = JOptionPane.showConfirmDialog(
@@ -598,16 +645,16 @@ public class DashboardFrame extends BaseFrame {
                 );
                 if (res == JOptionPane.YES_OPTION) {
                     disaster.service.UserSession.setCurrentUser(null);
-                    updateSessionUser("Demo User");
-                    if (isAdmin) {
-                        new LoginFrame().setVisible(true);
-                    }
+                    activeInstance = null;
+                    dispose();
+                    new LoginFrame().setVisible(true);
                 }
             });
             userMenu.add(signOutItem);
 
             userBtn.addActionListener(e -> {
-                userMenu.show(userBtn, 0, userBtn.getHeight() + 2);
+                int menuWidth = userMenu.getPreferredSize().width;
+                userMenu.show(userBtn, userBtn.getWidth() - menuWidth, userBtn.getHeight() + 4);
             });
             rightActions.add(userBtn);
         }
@@ -617,14 +664,164 @@ public class DashboardFrame extends BaseFrame {
     }
 
     /**
+     * Crisp vector settings icon for popup menu
+     */
+    public static class SettingsIcon implements Icon {
+        private final int size;
+        private final Color color;
+
+        public SettingsIcon(int size, Color color) {
+            this.size = size;
+            this.color = color;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            int cx = x + size / 2;
+            int cy = y + size / 2;
+            int r = size / 2 - 2;
+
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            for (int i = 0; i < 8; i++) {
+                double angle = i * Math.PI / 4;
+                int x1 = (int) Math.round(cx + (r - 2) * Math.cos(angle));
+                int y1 = (int) Math.round(cy + (r - 2) * Math.sin(angle));
+                int x2 = (int) Math.round(cx + r * Math.cos(angle));
+                int y2 = (int) Math.round(cy + r * Math.sin(angle));
+                g2.drawLine(x1, y1, x2, y2);
+            }
+            g2.drawOval(cx - (r - 2), cy - (r - 2), (r - 2) * 2, (r - 2) * 2);
+            g2.drawOval(cx - 2, cy - 2, 4, 4);
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /**
+     * Crisp vector sign out icon for popup menu
+     */
+    public static class SignOutIcon implements Icon {
+        private final int size;
+        private final Color color;
+
+        public SignOutIcon(int size, Color color) {
+            this.size = size;
+            this.color = color;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            int dx = x + 2;
+            int dy = y + 2;
+            int w = size - 5;
+            int h = size - 4;
+
+            // Door frame
+            g2.drawLine(dx + w * 2 / 3, dy, dx, dy);
+            g2.drawLine(dx, dy, dx, dy + h);
+            g2.drawLine(dx, dy + h, dx + w * 2 / 3, dy + h);
+
+            // Exit arrow
+            int cy = dy + h / 2;
+            int arrowStart = dx + w / 3;
+            int arrowEnd = x + size;
+            g2.drawLine(arrowStart, cy, arrowEnd, cy);
+            g2.drawLine(arrowEnd - 4, cy - 3, arrowEnd, cy);
+            g2.drawLine(arrowEnd - 4, cy + 3, arrowEnd, cy);
+
+            g2.dispose();
+        }
+
+        @Override
+        public int getIconWidth() { return size; }
+        @Override
+        public int getIconHeight() { return size; }
+    }
+
+    /**
+     * Circular avatar displaying first letter of username
+     */
+    public static class CircleAvatarButton extends JButton {
+        private final String initial;
+        private boolean isHovered = false;
+
+        public CircleAvatarButton(String name) {
+            String init = "U";
+            if (name != null && !name.trim().isEmpty()) {
+                init = String.valueOf(Character.toUpperCase(name.trim().charAt(0)));
+            }
+            this.initial = init;
+            setPreferredSize(new Dimension(36, 36));
+            setMinimumSize(new Dimension(36, 36));
+            setMaximumSize(new Dimension(36, 36));
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+            setToolTipText("Account: " + name);
+
+            addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseEntered(java.awt.event.MouseEvent e) {
+                    isHovered = true;
+                    repaint();
+                }
+                @Override
+                public void mouseExited(java.awt.event.MouseEvent e) {
+                    isHovered = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            UITheme.applyQualityHints(g2);
+            int w = getWidth();
+            int h = getHeight();
+
+            Color bg = isHovered ? UITheme.BRAND_CRIMSON.darker() : UITheme.BRAND_CRIMSON;
+            g2.setColor(bg);
+            g2.fillOval(1, 1, w - 2, h - 2);
+
+            g2.setColor(new Color(255, 255, 255, 120));
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.drawOval(1, 1, w - 2, h - 2);
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            FontMetrics fm = g2.getFontMetrics();
+            int textW = fm.stringWidth(initial);
+            int textH = fm.getAscent() - fm.getDescent();
+            int x = (w - textW) / 2;
+            int y = (h + textH) / 2;
+            g2.drawString(initial, x, y);
+
+            g2.dispose();
+        }
+    }
+
+    /**
      * 60 FPS Continuous Pixel-by-Pixel Smooth Marquee Component
-     * Antialiased, double-buffered, seamlessly looped, and pauses on hover.
+     * Antialiased, double-buffered, seamlessly looped, and NEVER stops on hover.
      */
     public static class SmoothMarqueePanel extends JComponent {
         private String text;
         private double xOffset = 0;
         private final Timer timer;
-        private boolean isHovered = false;
         private final Color textColor;
         private final Font font;
 
@@ -635,26 +832,14 @@ public class DashboardFrame extends BaseFrame {
             setDoubleBuffered(true);
             setOpaque(false);
             setCursor(new Cursor(Cursor.HAND_CURSOR));
-            setToolTipText("Live emergency bulletins — Hover to pause ticker");
+            setToolTipText("Live emergency bulletins — Continuous live ticker");
 
             // 60 FPS animation timer (~16ms per frame)
-            // Moving ~0.95 px/frame provides ultra-smooth, jitter-free scrolling
+            // Moving ~0.95 px/frame provides ultra-smooth, continuous scrolling without pausing
             timer = new Timer(16, e -> {
-                if (!isHovered && getWidth() > 0) {
+                if (getWidth() > 0) {
                     xOffset += 0.95;
                     repaint();
-                }
-            });
-
-            addMouseListener(new java.awt.event.MouseAdapter() {
-                @Override
-                public void mouseEntered(java.awt.event.MouseEvent e) {
-                    isHovered = true;
-                }
-
-                @Override
-                public void mouseExited(java.awt.event.MouseEvent e) {
-                    isHovered = false;
                 }
             });
         }

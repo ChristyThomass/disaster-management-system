@@ -34,4 +34,34 @@ public class EmergencyContactDAO {
             return false;
         }
     }
+
+    public boolean updateContact(String oldName, String oldPhone, String newName, String newPhone) {
+        String sql = "UPDATE emergency_contacts SET contact_name = ?, contact_phone = ? WHERE contact_name = ? OR contact_phone = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            if (conn == null) return false;
+            pstmt.setString(1, newName.trim());
+            pstmt.setString(2, newPhone.trim());
+            pstmt.setString(3, oldName.trim());
+            pstmt.setString(4, oldPhone.trim());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ [EmergencyContactDAO] Update error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteContact(String name, String phone) {
+        String sql = "DELETE FROM emergency_contacts WHERE contact_name = ? OR contact_phone = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            if (conn == null) return false;
+            pstmt.setString(1, name.trim());
+            pstmt.setString(2, phone.trim());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("❌ [EmergencyContactDAO] Delete error: " + e.getMessage());
+            return false;
+        }
+    }
 }

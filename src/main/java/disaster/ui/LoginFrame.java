@@ -56,18 +56,18 @@ public class LoginFrame extends BaseFrame {
         JLabel sub = subtitle("Enter your authorized credentials below");
         card.add(sub, gbc);
 
-        // 4. Username Label (Left-aligned)
+        // 4. Email Label (Left-aligned)
         gbc.gridy++;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(0, 0, 4, 0);
-        JLabel userLbl = normalLabel("Username");
+        JLabel userLbl = normalLabel("Email");
         card.add(userLbl, gbc);
 
-        // 5. Username Field (Full width)
+        // 5. Email Field (Full width)
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 12, 0);
-        usernameField = createTextField("Enter username");
+        usernameField = createTextField("example@gmail.com");
         card.add(usernameField, gbc);
 
         // 6. Password Label (Left-aligned)
@@ -130,7 +130,7 @@ public class LoginFrame extends BaseFrame {
         if (identifier.isEmpty() || password.isEmpty()) {
             JOptionPane.showMessageDialog(
                     this,
-                    "Please enter both your username and password.",
+                    "Please enter both your email and password.",
                     "Missing Information",
                     JOptionPane.WARNING_MESSAGE
             );
@@ -143,13 +143,6 @@ public class LoginFrame extends BaseFrame {
                 disaster.model.User adminUser = new disaster.model.User("admin-001", "Admin Panel", "admin@sdma.kerala.gov.in", "ADMIN", 9.9312, 76.2673);
                 adminUser.setFullName("Admin Panel");
                 disaster.service.UserSession.setCurrentUser(adminUser);
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Admin Authentication Successful!\nWelcome to the Admin Panel.",
-                        "Admin Access Granted",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
 
                 dispose();
                 if (DashboardFrame.getActiveInstance() != null) {
@@ -202,23 +195,16 @@ public class LoginFrame extends BaseFrame {
             disaster.service.UserSession.setCurrentUser(user);
 
             String displayName = user.getUsername();
-            if (!displayName.isEmpty()) {
+            if (user.getFullName() != null && !user.getFullName().trim().isEmpty()) {
+                displayName = user.getFullName().trim();
+            } else if (!displayName.isEmpty()) {
                 displayName = Character.toUpperCase(displayName.charAt(0)) + displayName.substring(1);
             }
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Database Authentication Successful!\n" +
-                    "Welcome, " + displayName + " (" + user.getUserType() + ")\n" +
-                    "User ID: #" + user.getUserId() + "\n" +
-                    "Database: disaster_db @ localhost:3306",
-                    "Login Verified",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
 
             dispose();
             if (DashboardFrame.getActiveInstance() != null) {
                 DashboardFrame.getActiveInstance().updateSessionUser(displayName);
+                DashboardFrame.getActiveInstance().setVisible(true);
                 DashboardFrame.getActiveInstance().toFront();
                 DashboardFrame.getActiveInstance().requestFocus();
             } else {
@@ -227,8 +213,8 @@ public class LoginFrame extends BaseFrame {
         } else {
             JOptionPane.showMessageDialog(
                     this,
-                    "Login Failed: Username '" + identifier + "' was not found in 'disaster_db.users'.\n" +
-                    "Please check the username or click 'Create an account' to register.",
+                    "Login Failed: Email '" + identifier + "' was not found or password was incorrect.\n" +
+                    "Please check your credentials or click 'Create an account' to register.",
                     "Authentication Error",
                     JOptionPane.ERROR_MESSAGE
             );

@@ -17,33 +17,120 @@ public class AdminDataManager {
     // ---------------- Model Classes ----------------
     public static class Volunteer {
         private int id;
+        private String username;
         private String name;
-        private String skill;
-        private String sector;
+        private String email;
         private String phone;
+        private String district;
+        private String skill;
+        private String idProofPath;
+        private String certificatePath;
         private String status;
+        private String registeredDate;
 
         public Volunteer(int id, String name, String skill, String sector, String phone, String status) {
+            this(id,
+                 name.toLowerCase().replaceAll("[^a-z0-9]", "_"),
+                 name,
+                 name.toLowerCase().replaceAll("[^a-z0-9]", "") + "@volunteer.sdma.gov.in",
+                 phone,
+                 sector,
+                 skill,
+                 "Verified Govt Record",
+                 "Certified Responder",
+                 status,
+                 "2026-10-26");
+        }
+
+        public Volunteer(int id, String username, String name, String email, String phone,
+                         String district, String skill, String idProofPath, String certificatePath,
+                         String status, String registeredDate) {
             this.id = id;
-            this.name = name;
-            this.skill = skill;
-            this.sector = sector;
-            this.phone = phone;
-            this.status = status;
+            this.username = username != null ? username : "";
+            this.name = name != null ? name : "";
+            this.email = email != null ? email : "";
+            this.phone = phone != null ? phone : "";
+            this.district = district != null ? district : "General Sector";
+            this.skill = skill != null ? skill : "General Relief";
+            this.idProofPath = idProofPath != null ? idProofPath : "None Attached";
+            this.certificatePath = certificatePath != null ? certificatePath : "None Attached";
+            this.status = status != null ? status : "Pending";
+            this.registeredDate = registeredDate != null ? registeredDate : "2026-10-26";
         }
 
         public int getId() { return id; }
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
-        public String getSkill() { return skill; }
-        public void setSkill(String skill) { this.skill = skill; }
-        public String getSector() { return sector; }
-        public void setSector(String sector) { this.sector = sector; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
+        public String getDistrict() { return district; }
+        public void setDistrict(String district) { this.district = district; }
+        public String getSector() { return district; }
+        public void setSector(String sector) { this.district = sector; }
+        public String getSkill() { return skill; }
+        public void setSkill(String skill) { this.skill = skill; }
+        public String getIdProofPath() { return idProofPath; }
+        public void setIdProofPath(String idProofPath) { this.idProofPath = idProofPath; }
+        public String getCertificatePath() { return certificatePath; }
+        public void setCertificatePath(String certificatePath) { this.certificatePath = certificatePath; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public String getRegisteredDate() { return registeredDate; }
+        public void setRegisteredDate(String registeredDate) { this.registeredDate = registeredDate; }
     }
+
+    public static class VolunteerTask {
+        private int taskId;
+        private int volunteerId;
+        private String volunteerName;
+        private String taskTitle;
+        private String district;
+        private String location;
+        private String priority;
+        private String status;
+        private String assignedDate;
+        private String instructions;
+
+        public VolunteerTask(int taskId, int volunteerId, String volunteerName, String taskTitle,
+                             String district, String location, String priority, String status,
+                             String assignedDate, String instructions) {
+            this.taskId = taskId;
+            this.volunteerId = volunteerId;
+            this.volunteerName = volunteerName != null ? volunteerName : "";
+            this.taskTitle = taskTitle != null ? taskTitle : "";
+            this.district = district != null ? district : "";
+            this.location = location != null ? location : "";
+            this.priority = priority != null ? priority : "High";
+            this.status = status != null ? status : "Assigned";
+            this.assignedDate = assignedDate != null ? assignedDate : "2026-10-26";
+            this.instructions = instructions != null ? instructions : "";
+        }
+
+        public int getTaskId() { return taskId; }
+        public int getVolunteerId() { return volunteerId; }
+        public void setVolunteerId(int volunteerId) { this.volunteerId = volunteerId; }
+        public String getVolunteerName() { return volunteerName; }
+        public void setVolunteerName(String volunteerName) { this.volunteerName = volunteerName; }
+        public String getTaskTitle() { return taskTitle; }
+        public void setTaskTitle(String taskTitle) { this.taskTitle = taskTitle; }
+        public String getDistrict() { return district; }
+        public void setDistrict(String district) { this.district = district; }
+        public String getLocation() { return location; }
+        public void setLocation(String location) { this.location = location; }
+        public String getPriority() { return priority; }
+        public void setPriority(String priority) { this.priority = priority; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getAssignedDate() { return assignedDate; }
+        public void setAssignedDate(String assignedDate) { this.assignedDate = assignedDate; }
+        public String getInstructions() { return instructions; }
+        public void setInstructions(String instructions) { this.instructions = instructions; }
+    }
+
 
     public static class InventoryItem {
         private int id;
@@ -167,6 +254,7 @@ public class AdminDataManager {
 
     // ---------------- Data Collections ----------------
     private final List<Volunteer> volunteers = new CopyOnWriteArrayList<>();
+    private final List<VolunteerTask> volunteerTasks = new CopyOnWriteArrayList<>();
     private final List<InventoryItem> inventoryItems = new CopyOnWriteArrayList<>();
     private final List<ShelterHome> shelterHomes = new CopyOnWriteArrayList<>();
     private final List<DisasterAlert> alerts = new CopyOnWriteArrayList<>();
@@ -174,6 +262,7 @@ public class AdminDataManager {
     private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
 
     private int nextVolunteerId = 101;
+    private int nextTaskId = 1001;
     private int nextInventoryId = 201;
     private int nextShelterId = 301;
     private int nextAlertId = 401;
@@ -209,11 +298,41 @@ public class AdminDataManager {
     }
 
     private void seedInitialData() {
-        // 1. Volunteers
-        volunteers.add(new Volunteer(nextVolunteerId++, "Anil Kumar", "Boat Rescue & Deep Dive", "Alappuzha (Camp #1)", "+91 98471 23450", "Deployed"));
-        volunteers.add(new Volunteer(nextVolunteerId++, "Meera Nair", "Trauma Care Paramedic", "Wayanad (Meppadi Camp)", "+91 94462 89012", "On Duty"));
-        volunteers.add(new Volunteer(nextVolunteerId++, "Faisal Rahman", "Logistics & Food Distribution", "Kuttanad Relief Depot", "+91 98953 45671", "Active"));
-        volunteers.add(new Volunteer(nextVolunteerId++, "Deepa Thomas", "Emergency Communication Ham", "Idukki District Control", "+91 97450 11223", "Deployed"));
+        // 1. Volunteers (Initial approved state)
+        Volunteer v1 = new Volunteer(nextVolunteerId++, "anil_kumar", "Anil Kumar", "anil@disaster.kerala.gov.in", "+91 98471 23450", "Alappuzha", "Boat Rescue & Deep Dive", "Pre-verified Govt Record", "Kerala Fire Force Deep Sea Certified", "Approved", "2026-10-20");
+        Volunteer v2 = new Volunteer(nextVolunteerId++, "meera_nair", "Meera Nair", "meera@disaster.kerala.gov.in", "+91 94462 89012", "Wayanad", "Trauma Care Paramedic", "Pre-verified Govt Record", "Kerala Nursing Council Reg #8841", "Approved", "2026-10-22");
+        Volunteer v3 = new Volunteer(nextVolunteerId++, "faisal_rahman", "Faisal Rahman", "faisal@disaster.kerala.gov.in", "+91 98953 45671", "Alappuzha", "Logistics & Food Distribution", "Pre-verified Govt Record", "Civil Supplies Relief Logistics Cert", "Approved", "2026-10-23");
+        Volunteer v4 = new Volunteer(nextVolunteerId++, "deepa_thomas", "Deepa Thomas", "deepa@disaster.kerala.gov.in", "+91 97450 11223", "Idukki", "Emergency Communication Ham", "Pre-verified Govt Record", "Govt of India Wireless Telephony License", "Approved", "2026-10-24");
+
+        volunteers.add(v1);
+        volunteers.add(v2);
+        volunteers.add(v3);
+        volunteers.add(v4);
+
+        // Initial Seed Tasks
+        volunteerTasks.add(new VolunteerTask(
+                nextTaskId++, v1.getId(), v1.getName(),
+                "Kuttanad Motorboat Evacuation & Patrol",
+                "Alappuzha", "Kuttanad Backwaters Sector #3",
+                "Critical", "In Progress", "2026-10-26",
+                "Deploy with NDRF motorboat team to assist stranded elderly citizens and transport drinking water."
+        ));
+
+        volunteerTasks.add(new VolunteerTask(
+                nextTaskId++, v2.getId(), v2.getName(),
+                "Meppadi Landslide Relief Camp Triage Unit",
+                "Wayanad", "Meppadi Higher Secondary School Camp",
+                "High", "Assigned", "2026-10-26",
+                "Operate first aid dispensary, triage incoming injured evacuees, and organize medical prescriptions."
+        ));
+
+        volunteerTasks.add(new VolunteerTask(
+                nextTaskId++, v4.getId(), v4.getName(),
+                "Munnar Ghat VHF Radio Repeater Monitoring",
+                "Idukki", "Munnar District Control Center",
+                "High", "In Progress", "2026-10-26",
+                "Maintain line-of-sight emergency amateur radio connection between Idukki Collectorate and field rescue units."
+        ));
 
         // 2. Inventory
         inventoryItems.add(new InventoryItem(nextInventoryId++, "Inflatable Motorized Rescue Boats", "Alappuzha Water Depot", "18", "Units", "Ready for Deployment"));
@@ -251,9 +370,134 @@ public class AdminDataManager {
         return Collections.unmodifiableList(volunteers);
     }
 
+    public synchronized Volunteer addVolunteerApplication(String username, String name, String email,
+                                                          String phone, String district, String skill,
+                                                          String idProofPath, String certificatePath) {
+        String today = java.time.LocalDate.now().toString();
+        email = disaster.backend.DatabaseManager.cleanEmail(email);
+        Volunteer v = new Volunteer(nextVolunteerId++, username, name, email, phone, district, skill, idProofPath, certificatePath, "Pending", today);
+        volunteers.add(v);
+        notifyListeners();
+        return v;
+    }
+
     public synchronized void addVolunteer(String name, String skill, String sector, String phone, String status) {
         volunteers.add(new Volunteer(nextVolunteerId++, name, skill, sector, phone, status));
         notifyListeners();
+    }
+
+    public synchronized boolean approveVolunteer(int id) {
+        for (Volunteer v : volunteers) {
+            if (v.getId() == id) {
+                v.setStatus("Approved");
+                if (getTasksForVolunteer(id).isEmpty()) {
+                    assignTask(v.getId(), v.getName(),
+                            v.getDistrict() + " Field Emergency Mission (" + v.getSkill() + ")",
+                            v.getDistrict(),
+                            v.getDistrict() + " Central SDMA Relief Command",
+                            "High",
+                            "Report to District Incident Command. Coordinate on-ground relief and assist evacuation operations.");
+                }
+                notifyListeners();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized boolean rejectVolunteer(int id) {
+        for (Volunteer v : volunteers) {
+            if (v.getId() == id) {
+                v.setStatus("Rejected");
+                notifyListeners();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized Volunteer getVolunteerById(int id) {
+        for (Volunteer v : volunteers) {
+            if (v.getId() == id) return v;
+        }
+        return null;
+    }
+
+    public synchronized Volunteer getVolunteerByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) return null;
+        String clean = username.trim().toLowerCase();
+        for (Volunteer v : volunteers) {
+            if (v.getUsername() != null && v.getUsername().equalsIgnoreCase(clean)) {
+                return v;
+            }
+        }
+        // Match by legal name if username didn't match directly
+        for (Volunteer v : volunteers) {
+            if (v.getName() != null && v.getName().equalsIgnoreCase(clean)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public synchronized Volunteer getVolunteerByEmail(String email) {
+        if (email == null || email.trim().isEmpty()) return null;
+        String clean = email.trim().toLowerCase();
+        for (Volunteer v : volunteers) {
+            if (v.getEmail() != null && v.getEmail().equalsIgnoreCase(clean)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public synchronized String getVolunteerStatus(String identifier) {
+        if (identifier == null) return "NONE";
+        Volunteer v = getVolunteerByUsername(identifier);
+        if (v == null && identifier.contains("@")) {
+            v = getVolunteerByEmail(identifier);
+        }
+        if (v != null) {
+            return v.getStatus();
+        }
+        return "NONE";
+    }
+
+    public synchronized boolean isVolunteerApproved(String identifier) {
+        if (identifier == null) return false;
+        if ("admin".equalsIgnoreCase(identifier) || "admin123".equalsIgnoreCase(identifier)) {
+            return true;
+        }
+        Volunteer v = getVolunteerByUsername(identifier);
+        if (v == null && identifier.contains("@")) {
+            v = getVolunteerByEmail(identifier);
+        }
+        if (v != null) {
+            String s = v.getStatus().toLowerCase();
+            return s.contains("approved") || s.contains("active") || s.contains("deployed") || s.contains("on duty");
+        }
+        return false;
+    }
+
+    public List<Volunteer> getPendingVolunteers() {
+        List<Volunteer> list = new ArrayList<>();
+        for (Volunteer v : volunteers) {
+            if ("Pending".equalsIgnoreCase(v.getStatus())) {
+                list.add(v);
+            }
+        }
+        return list;
+    }
+
+    public List<Volunteer> getApprovedVolunteers() {
+        List<Volunteer> list = new ArrayList<>();
+        for (Volunteer v : volunteers) {
+            String s = v.getStatus().toLowerCase();
+            if (s.contains("approved") || s.contains("active") || s.contains("deployed") || s.contains("on duty")) {
+                list.add(v);
+            }
+        }
+        return list;
     }
 
     public synchronized boolean updateVolunteer(int id, String name, String skill, String sector, String phone, String status) {
@@ -275,6 +519,67 @@ public class AdminDataManager {
         boolean removed = volunteers.removeIf(v -> v.getId() == id);
         if (removed) notifyListeners();
         return removed;
+    }
+
+    // ---------------- Volunteer Tasks & Assigned Works ----------------
+    public List<VolunteerTask> getAllTasks() {
+        return Collections.unmodifiableList(volunteerTasks);
+    }
+
+    public synchronized VolunteerTask assignTask(int volunteerId, String volunteerName, String taskTitle,
+                                                 String district, String location, String priority,
+                                                 String instructions) {
+        String today = java.time.LocalDate.now().toString();
+        VolunteerTask t = new VolunteerTask(nextTaskId++, volunteerId, volunteerName, taskTitle, district, location, priority, "Assigned", today, instructions);
+        volunteerTasks.add(0, t);
+        notifyListeners();
+        return t;
+    }
+
+    public synchronized boolean updateTaskStatus(int taskId, String newStatus) {
+        for (VolunteerTask t : volunteerTasks) {
+            if (t.getTaskId() == taskId) {
+                t.setStatus(newStatus);
+                notifyListeners();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized boolean deleteTask(int taskId) {
+        boolean removed = volunteerTasks.removeIf(t -> t.getTaskId() == taskId);
+        if (removed) notifyListeners();
+        return removed;
+    }
+
+    public List<VolunteerTask> getTasksForVolunteer(int volunteerId) {
+        List<VolunteerTask> list = new ArrayList<>();
+        for (VolunteerTask t : volunteerTasks) {
+            if (t.getVolunteerId() == volunteerId) {
+                list.add(t);
+            }
+        }
+        return list;
+    }
+
+    public List<VolunteerTask> getTasksForUser(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) return Collections.emptyList();
+        String clean = identifier.trim().toLowerCase();
+        Volunteer v = getVolunteerByUsername(clean);
+        if (v == null && clean.contains("@")) {
+            v = getVolunteerByEmail(clean);
+        }
+        int vid = (v != null) ? v.getId() : -1;
+        List<VolunteerTask> list = new ArrayList<>();
+        for (VolunteerTask t : volunteerTasks) {
+            if (vid != -1 && t.getVolunteerId() == vid) {
+                list.add(t);
+            } else if (t.getVolunteerName() != null && t.getVolunteerName().trim().equalsIgnoreCase(clean)) {
+                list.add(t);
+            }
+        }
+        return list;
     }
 
     // ---------------- Inventory Methods ----------------

@@ -12,9 +12,36 @@ public class InventoryFrame extends BaseFrame {
     private DefaultTableModel model;
 
     public InventoryFrame() {
-        super("Warehouse Supplies & Logistics Depot - SDMA", 920, 600);
+        super("Warehouse Supplies & Logistics Depot - SDMA Admin", 920, 600);
+        if (!isAuthorizedAdmin()) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "ACCESS RESTRICTED TO ADMINISTRATORS ONLY:\n\n"
+                                + "Warehouse Supplies and Emergency Logistics Depot management is strictly\n"
+                                + "accessible through the Administrator Portal.\n\n"
+                                + "Please sign in as Administrator to view or manage inventory.",
+                        "Admin Clearance Required",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                dispose();
+            });
+            return;
+        }
         setMinimumSize(new Dimension(800, 500));
         buildUI();
+    }
+
+    private boolean isAuthorizedAdmin() {
+        if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
+            String u = disaster.service.UserSession.getCurrentUser().getUsername();
+            String t = disaster.service.UserSession.getCurrentUser().getUserType();
+            if ("ADMIN".equalsIgnoreCase(t)) return true;
+            if (u != null && ("admin".equalsIgnoreCase(u) || "admin123".equalsIgnoreCase(u) || "Admin Panel".equalsIgnoreCase(u))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void buildUI() {

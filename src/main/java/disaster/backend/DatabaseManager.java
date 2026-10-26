@@ -200,6 +200,35 @@ public class DatabaseManager {
                     + "`message` VARCHAR(255) NOT NULL, "
                     + "`is_read` BIT DEFAULT 0"
                     + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // 10. volunteers
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `volunteers` ("
+                    + "`id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`username` VARCHAR(50), "
+                    + "`name` VARCHAR(100) NOT NULL, "
+                    + "`email` VARCHAR(100), "
+                    + "`phone` VARCHAR(20), "
+                    + "`district` VARCHAR(50), "
+                    + "`skill` VARCHAR(100), "
+                    + "`id_proof` VARCHAR(255), "
+                    + "`certificate` VARCHAR(255), "
+                    + "`status` VARCHAR(30) DEFAULT 'Pending', "
+                    + "`created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // 11. volunteer_tasks
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS `volunteer_tasks` ("
+                    + "`task_id` INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "`volunteer_id` INT, "
+                    + "`volunteer_name` VARCHAR(100), "
+                    + "`task_title` VARCHAR(150) NOT NULL, "
+                    + "`district` VARCHAR(50), "
+                    + "`location` VARCHAR(150), "
+                    + "`priority` VARCHAR(20) DEFAULT 'High', "
+                    + "`status` VARCHAR(30) DEFAULT 'Assigned', "
+                    + "`assigned_date` VARCHAR(30), "
+                    + "`instructions` TEXT"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
     }
 
@@ -277,6 +306,32 @@ public class DatabaseManager {
                         + "user_id INT NOT NULL, "
                         + "message VARCHAR(255) NOT NULL, "
                         + "is_read BOOLEAN DEFAULT FALSE)");
+
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS volunteers ("
+                        + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "username VARCHAR(50), "
+                        + "name VARCHAR(100) NOT NULL, "
+                        + "email VARCHAR(100), "
+                        + "phone VARCHAR(20), "
+                        + "district VARCHAR(50), "
+                        + "skill VARCHAR(100), "
+                        + "id_proof VARCHAR(255), "
+                        + "certificate VARCHAR(255), "
+                        + "status VARCHAR(30) DEFAULT 'Pending', "
+                        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                stmt.executeUpdate("CREATE TABLE IF NOT EXISTS volunteer_tasks ("
+                        + "task_id INT AUTO_INCREMENT PRIMARY KEY, "
+                        + "volunteer_id INT, "
+                        + "volunteer_name VARCHAR(100), "
+                        + "task_title VARCHAR(150) NOT NULL, "
+                        + "district VARCHAR(50), "
+                        + "location VARCHAR(150), "
+                        + "priority VARCHAR(20) DEFAULT 'High', "
+                        + "status VARCHAR(30) DEFAULT 'Assigned', "
+                        + "assigned_date VARCHAR(30), "
+                        + "instructions TEXT)");
+
 
                 ResultSet rs = stmt.executeQuery("SELECT count(*) FROM users");
                 if (rs.next() && rs.getInt(1) == 0) {
@@ -758,9 +813,71 @@ public class DatabaseManager {
         return new ArrayList<>(memoryContacts);
     }
 
+    public boolean updateEmergencyContact(String oldName, String oldPhone, String newName, String newPhone) {
+        if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
+            String sql = "UPDATE emergency_contacts SET contact_name = ?, contact_phone = ? WHERE contact_name = ? OR contact_phone = ?";
+            try (Connection conn = getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, newName);
+                pstmt.setString(2, newPhone);
+                pstmt.setString(3, oldName);
+                pstmt.setString(4, oldPhone);
+                int count = pstmt.executeUpdate();
+                if (count > 0) return true;
+            } catch (SQLException e) {
+                System.err.println("[DatabaseManager] Update contact error: " + e.getMessage());
+            }
+        }
+        for (ContactEntry c : memoryContacts) {
+            if (c.contactName.equalsIgnoreCase(oldName) || c.contactPhone.equals(oldPhone)) {
+                c.contactName = newName;
+                c.contactPhone = newPhone;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean deleteEmergencyContact(String name, String phone) {
+        if (currentMode == DbMode.XAMPP_MYSQL || currentMode == DbMode.LOCAL_EMBEDDED) {
+            String sql = "DELETE FROM emergency_contacts WHERE contact_name = ? OR contact_phone = ?";
+            try (Connection conn = getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, name);
+                pstmt.setString(2, phone);
+                int count = pstmt.executeUpdate();
+                if (count > 0) return true;
+            } catch (SQLException e) {
+                System.err.println("[DatabaseManager] Delete contact error: " + e.getMessage());
+            }
+        }
+        return memoryContacts.removeIf(c -> c.contactName.equalsIgnoreCase(name) || c.contactPhone.equals(phone));
+    }
+
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    public static String cleanEmail(String email) {
+        if (email == null) return "";
+        email = email.trim();
+        if (email.contains("@")) {
+            int firstAt = email.indexOf('@');
+            int secondAt = email.indexOf('@', firstAt + 1);
+            if (secondAt > 0) {
+                email = email.substring(0, secondAt);
+            }
+        }
+        if (email.endsWith("@kerala.gov.in") && email.length() > "@kerala.gov.in".length()) {
+            String sub = email.substring(0, email.length() - "@kerala.gov.in".length());
+            if (sub.contains("@")) email = sub;
+        }
+        if (email.endsWith("@kerala.gov.com") && email.length() > "@kerala.gov.com".length()) {
+            String sub = email.substring(0, email.length() - "@kerala.gov.com".length());
+            if (sub.contains("@")) email = sub;
+        }
+        return email;
+    }
 
     private User mapUser(ResultSet rs) throws SQLException {
         String id = String.valueOf(rs.getInt("user_id"));
@@ -770,16 +887,29 @@ public class DatabaseManager {
         String blood = rs.getString("blood_group");
         String addr = rs.getString("address");
 
+        String email = username;
+        try {
+            String dbEmail = rs.getString("email");
+            if (dbEmail != null && !dbEmail.trim().isEmpty()) {
+                email = dbEmail;
+            }
+        } catch (Exception ignored) {}
+
+        if (email == null || !email.contains("@")) {
+            email = (username != null ? username : "user") + "@disaster.gov.in";
+        }
+        email = cleanEmail(email);
+
         User u = new User(
                 id,
                 username,
-                username + "@kerala.gov.in",
+                email,
                 "CITIZEN",
                 9.9312,
                 76.2673
         );
-        u.setPhone(phone);
-        u.setFullName(fullName != null ? fullName : username);
+        u.setPhone(phone != null ? phone : "");
+        u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (username.contains("@") ? username.substring(0, username.indexOf('@')) : username));
         u.setBloodGroup(blood != null ? blood : "O+");
         u.setAddress(addr != null ? addr : "Kerala");
         u.setPasswordHash(hashPassword("Pass123456"));

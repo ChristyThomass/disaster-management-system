@@ -242,6 +242,17 @@ public class BaseFrame extends JFrame {
         }
     }
 
+    public static JButton createSolidButton(String text, Color bgColor, Color textColor) {
+        return new RoundedButton(text, bgColor, bgColor.darker(), textColor);
+    }
+
+    public static JButton createOutlinedButtonStatic(String text, Color borderColor, Color textColor) {
+        RoundedButton btn = new RoundedButton(text, Color.WHITE, UITheme.CARD_HOVER, textColor);
+        btn.setDrawBorder(true);
+        btn.setBorderColor(borderColor);
+        return btn;
+    }
+
     public static class RoundedButton extends JButton {
         private final Color normalColor;
         private final Color hoverColor;
@@ -264,8 +275,8 @@ public class BaseFrame extends JFrame {
             setOpaque(false);
             setCursor(new Cursor(Cursor.HAND_CURSOR));
             setPreferredSize(new Dimension(160, 38));
-            setMinimumSize(new Dimension(100, 36));
-            setMaximumSize(new Dimension(Short.MAX_VALUE, 40));
+            setMinimumSize(new Dimension(80, 32));
+            setMaximumSize(new Dimension(Short.MAX_VALUE, 50));
 
             addMouseListener(new MouseAdapter() {
                 @Override
@@ -302,13 +313,14 @@ public class BaseFrame extends JFrame {
             g2.fill(new RoundRectangle2D.Float(0, 0, w, h, 6, 6));
 
             if (drawBorder) {
-                g2.setColor(borderColor);
+                g2.setColor(borderColor != null ? borderColor : UITheme.BORDER_DARK);
                 g2.setStroke(new BasicStroke(1.2f));
                 g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, w - 1f, h - 1f, 6, 6));
             }
 
             FontMetrics fm = g2.getFontMetrics(getFont());
-            int tx = (w - fm.stringWidth(getText())) / 2;
+            int stringW = fm.stringWidth(getText());
+            int tx = Math.max(8, (w - stringW) / 2);
             int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
 
             g2.setFont(getFont());

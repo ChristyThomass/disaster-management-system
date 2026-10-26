@@ -131,18 +131,18 @@ public class AlertFrame extends BaseFrame {
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         bottom.setOpaque(false);
 
-        JButton refreshBtn = createOutlineButton("🔄 Refresh Live Backend Alerts", UITheme.BORDER_DARK);
-        refreshBtn.setPreferredSize(new Dimension(210, 38));
+        JButton refreshBtn = createOutlineButton("Refresh Live Alerts", UITheme.BORDER_DARK);
+        refreshBtn.setPreferredSize(new Dimension(170, 40));
         refreshBtn.addActionListener(e -> loadBackendAlerts());
         bottom.add(refreshBtn);
 
         JButton viewBtn = button("View Selected Bulletin", UITheme.BRAND_CRIMSON);
-        viewBtn.setPreferredSize(new Dimension(175, 38));
+        viewBtn.setPreferredSize(new Dimension(185, 40));
         viewBtn.addActionListener(e -> showSelectedDetails());
         bottom.add(viewBtn);
 
-        JButton backBtn = createBackButton("← Back to Portal");
-        backBtn.setPreferredSize(new Dimension(140, 38));
+        JButton backBtn = createBackButton("Back to Portal");
+        backBtn.setPreferredSize(new Dimension(140, 40));
         bottom.add(backBtn);
 
         mainPanel.add(bottom, BorderLayout.SOUTH);

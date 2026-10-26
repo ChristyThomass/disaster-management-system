@@ -141,8 +141,16 @@ public class UserDAO {
                     String id = String.valueOf(rs.getInt("user_id"));
                     String uname = rs.getString("username");
                     String phone = rs.getString("phone");
-                    User u = new User(id, uname, uname + "@kerala.gov.in", "CITIZEN", 9.9312, 76.2673);
-                    u.setPhone(phone);
+                    String fullName = rs.getString("full_name");
+                    String blood = rs.getString("blood_group");
+                    String addr = rs.getString("address");
+                    String email = uname.contains("@") ? uname : (uname + "@disaster.gov.in");
+                    email = disaster.backend.DatabaseManager.cleanEmail(email);
+                    User u = new User(id, uname, email, "CITIZEN", 9.9312, 76.2673);
+                    u.setPhone(phone != null ? phone : "");
+                    u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (uname.contains("@") ? uname.substring(0, uname.indexOf('@')) : uname));
+                    u.setBloodGroup(blood != null ? blood : "O+");
+                    u.setAddress(addr != null ? addr : "");
                     return u;
                 }
             }
@@ -175,8 +183,16 @@ public class UserDAO {
                     String id = String.valueOf(rs.getInt("user_id"));
                     String uname = rs.getString("username");
                     String phone = rs.getString("phone");
-                    User u = new User(id, uname, uname + "@kerala.gov.in", "CITIZEN", 9.9312, 76.2673);
-                    u.setPhone(phone);
+                    String fullName = rs.getString("full_name");
+                    String blood = rs.getString("blood_group");
+                    String addr = rs.getString("address");
+                    String email = uname.contains("@") ? uname : (uname + "@disaster.gov.in");
+                    email = disaster.backend.DatabaseManager.cleanEmail(email);
+                    User u = new User(id, uname, email, "CITIZEN", 9.9312, 76.2673);
+                    u.setPhone(phone != null ? phone : "");
+                    u.setFullName(fullName != null && !fullName.trim().isEmpty() ? fullName.trim() : (uname.contains("@") ? uname.substring(0, uname.indexOf('@')) : uname));
+                    u.setBloodGroup(blood != null ? blood : "O+");
+                    u.setAddress(addr != null ? addr : "");
                     return u;
                 }
             }

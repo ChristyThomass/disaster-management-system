@@ -42,6 +42,9 @@ public class AdminFrame extends BaseFrame {
     private DefaultTableModel bulletinModel;
     private JTable bulletinTable;
 
+    private DefaultTableModel emergencyRecordsModel;
+    private JTable emergencyRecordsTable;
+
     public AdminFrame() {
         super("Admin Panel", 1120, 720);
         setMinimumSize(new Dimension(980, 640));
@@ -151,6 +154,7 @@ public class AdminFrame extends BaseFrame {
         tabbedPane.addTab("🏕️  Shelter Homes", createShelterHomePanel());
         tabbedPane.addTab("👥  Volunteers Roster", createVolunteersPanel());
         tabbedPane.addTab("📦  Warehouse Supplies", createInventoryPanel());
+        tabbedPane.addTab("☎️  Emergency Records", createEmergencyRecordsPanel());
         tabbedPane.addTab("⚠️  Disaster Alerts", createAlertsPanel());
         tabbedPane.addTab("📢  Live Ground Bulletins", createBulletinsPanel());
 
@@ -325,47 +329,272 @@ public class AdminFrame extends BaseFrame {
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
-        JButton addBtn = button("+ Add Volunteer", UITheme.PRIMARY);
-        addBtn.setPreferredSize(new Dimension(150, 34));
+        JButton approveBtn = button("Approve Application", UITheme.SUCCESS);
+        approveBtn.setPreferredSize(new Dimension(175, 36));
+        approveBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        approveBtn.addActionListener(e -> approveSelectedVolunteer());
+        toolbar.add(approveBtn);
+
+        JButton rejectBtn = createOutlinedButton("Reject", UITheme.BORDER_DARK, UITheme.DANGER);
+        rejectBtn.setPreferredSize(new Dimension(100, 36));
+        rejectBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        rejectBtn.addActionListener(e -> rejectSelectedVolunteer());
+        toolbar.add(rejectBtn);
+
+        JButton viewDocBtn = createOutlinedButton("View ID & Cert", UITheme.BORDER_DARK, UITheme.TEXT);
+        viewDocBtn.setPreferredSize(new Dimension(145, 36));
+        viewDocBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        viewDocBtn.addActionListener(e -> viewSelectedVolunteerDocuments());
+        toolbar.add(viewDocBtn);
+
+        JButton assignWorkBtn = button("Assign Work", UITheme.PRIMARY);
+        assignWorkBtn.setPreferredSize(new Dimension(140, 36));
+        assignWorkBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        assignWorkBtn.addActionListener(e -> assignWorkToSelectedVolunteer());
+        toolbar.add(assignWorkBtn);
+
+        JButton viewWorksBtn = createOutlinedButton("All Field Works", UITheme.BRAND_CRIMSON, UITheme.BRAND_CRIMSON);
+        viewWorksBtn.setPreferredSize(new Dimension(150, 36));
+        viewWorksBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        viewWorksBtn.addActionListener(e -> new VolunteerWorksFrame("admin").setVisible(true));
+        toolbar.add(viewWorksBtn);
+
+        JButton addBtn = createOutlinedButton("+ Add Volunteer", UITheme.BORDER_DARK, UITheme.PRIMARY);
+        addBtn.setPreferredSize(new Dimension(140, 36));
         addBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         addBtn.addActionListener(e -> showAddVolunteerDialog());
         toolbar.add(addBtn);
 
-        JButton editBtn = createOutlinedButton("Edit Selected Volunteer", UITheme.BRAND_CRIMSON, UITheme.BRAND_CRIMSON);
-        editBtn.setPreferredSize(new Dimension(180, 34));
-        editBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        editBtn.addActionListener(e -> showEditVolunteerDialog());
-        toolbar.add(editBtn);
-
-        JButton deleteBtn = createOutlinedButton("Delete Volunteer", UITheme.BORDER_DARK, UITheme.DANGER);
-        deleteBtn.setPreferredSize(new Dimension(140, 34));
+        JButton deleteBtn = createOutlinedButton("Delete", UITheme.BORDER_DARK, UITheme.DANGER);
+        deleteBtn.setPreferredSize(new Dimension(95, 36));
         deleteBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         deleteBtn.addActionListener(e -> deleteSelectedVolunteer());
         toolbar.add(deleteBtn);
 
         panel.add(toolbar, BorderLayout.NORTH);
 
-        String[] cols = {"ID", "Volunteer Name", "Certified Skill / Role", "Assigned Sector / Camp", "Contact Number", "Deployment Status"};
+        String[] cols = {
+                "ID",
+                "Volunteer Name",
+                "Email Address",
+                "Contact Phone",
+                "District / Sector",
+                "Certified Skillset",
+                "ID Proof Document",
+                "Certificate",
+                "Status"
+        };
         volunteerModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         volunteerTable = createStyledTable(volunteerModel);
+        volunteerTable.getColumnModel().getColumn(0).setPreferredWidth(50);
+        volunteerTable.getColumnModel().getColumn(1).setPreferredWidth(140);
+        volunteerTable.getColumnModel().getColumn(2).setPreferredWidth(160);
+        volunteerTable.getColumnModel().getColumn(3).setPreferredWidth(110);
+        volunteerTable.getColumnModel().getColumn(4).setPreferredWidth(110);
+        volunteerTable.getColumnModel().getColumn(5).setPreferredWidth(160);
+        volunteerTable.getColumnModel().getColumn(6).setPreferredWidth(120);
+        volunteerTable.getColumnModel().getColumn(7).setPreferredWidth(120);
+        volunteerTable.getColumnModel().getColumn(8).setPreferredWidth(100);
+
+        // Status column styling
+        volunteerTable.getColumnModel().getColumn(8).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                l.setHorizontalAlignment(SwingConstants.CENTER);
+                l.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                String v = String.valueOf(value).toLowerCase();
+                if (v.contains("pending")) {
+                    l.setForeground(new Color(217, 119, 6)); // Orange
+                } else if (v.contains("approved") || v.contains("active") || v.contains("deployed") || v.contains("on duty")) {
+                    l.setForeground(UITheme.SUCCESS); // Green
+                } else if (v.contains("rejected")) {
+                    l.setForeground(UITheme.DANGER); // Red
+                } else {
+                    l.setForeground(UITheme.TEXT);
+                }
+                return l;
+            }
+        });
+
         panel.add(new JScrollPane(volunteerTable), BorderLayout.CENTER);
 
         return panel;
     }
 
-    private void showAddVolunteerDialog() {
-        JTextField nameF = createTextField("e.g. Sreekumar N.");
-        JTextField skillF = createTextField("e.g. First Aid & Evacuation Support");
-        JTextField sectorF = createTextField("e.g. Wayanad Sector #2");
-        JTextField phoneF = createTextField("e.g. +91 94470 54321");
-        JComboBox<String> statusC = new JComboBox<>(new String[]{"Deployed", "On Duty", "Active", "Standby"});
+    private void approveSelectedVolunteer() {
+        int row = volunteerTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a volunteer from the table to approve.", "No Row Selected", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int id = (int) volunteerModel.getValueAt(row, 0);
+        String name = (String) volunteerModel.getValueAt(row, 1);
+        boolean ok = dataManager.approveVolunteer(id);
+        if (ok) {
+            // Update in DB if online
+            try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
+                if (conn != null) {
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET status='Approved' WHERE id=?")) {
+                        ps.setInt(1, id);
+                        ps.executeUpdate();
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            refreshAllTables();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "✓ VOLUNTEER REGISTRATION APPROVED!\n\n"
+                            + "Volunteer: " + name + " (ID #" + id + ")\n"
+                            + "Status: Approved & Deployment Ready\n\n"
+                            + "This volunteer now has immediate read access to the full Volunteer Roster\n"
+                            + "and can be assigned field disaster relief works.",
+                    "Application Approved",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        }
+    }
+
+    private void rejectSelectedVolunteer() {
+        int row = volunteerTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a volunteer from the table to reject.", "No Row Selected", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int id = (int) volunteerModel.getValueAt(row, 0);
+        String name = (String) volunteerModel.getValueAt(row, 1);
+        int conf = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to REJECT the volunteer application for:\n" + name + " (ID #" + id + ")?",
+                "Confirm Rejection",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        if (conf == JOptionPane.YES_OPTION) {
+            dataManager.rejectVolunteer(id);
+            try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
+                if (conn != null) {
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement("UPDATE volunteers SET status='Rejected' WHERE id=?")) {
+                        ps.setInt(1, id);
+                        ps.executeUpdate();
+                    }
+                }
+            } catch (Exception ignored) {}
+            refreshAllTables();
+        }
+    }
+
+    private void viewSelectedVolunteerDocuments() {
+        int row = volunteerTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a volunteer row from the table first.", "Selection Required", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int id = (int) volunteerModel.getValueAt(row, 0);
+        String name = (String) volunteerModel.getValueAt(row, 1);
+        String idDoc = (String) volunteerModel.getValueAt(row, 6);
+        String certDoc = (String) volunteerModel.getValueAt(row, 7);
+        String status = (String) volunteerModel.getValueAt(row, 8);
+
+        JOptionPane.showMessageDialog(
+                this,
+                "VERIFICATION DOCUMENTS FOR VOLUNTEER #" + id + "\n\n"
+                        + "• Applicant Legal Name: " + name + "\n"
+                        + "• Current Status: " + status + "\n\n"
+                        + "📁 Government Identity Proof:\n"
+                        + "   " + idDoc + "\n\n"
+                        + "📜 Training & Skill Credentials:\n"
+                        + "   " + certDoc + "\n\n"
+                        + "Click 'Approve Application' in the toolbar to grant active status.",
+                "Volunteer Credentials & Documents",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private void assignWorkToSelectedVolunteer() {
+        int row = volunteerTable.getSelectedRow();
+        Volunteer targetVol = null;
+        if (row >= 0) {
+            int id = (int) volunteerModel.getValueAt(row, 0);
+            targetVol = dataManager.getVolunteerById(id);
+        }
+
+        if (targetVol == null) {
+            List<Volunteer> approved = dataManager.getApprovedVolunteers();
+            if (approved.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No approved volunteers available to assign tasks.\nPlease approve an applicant first.", "No Volunteers", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            targetVol = approved.get(0);
+        }
+
+        JTextField titleF = createTextField("e.g. Flash Flood Water Rescue & Evacuation");
+        JComboBox<String> distCombo = new JComboBox<>(disaster.service.VolunteerSkillsData.KERALA_DISTRICTS);
+        distCombo.setSelectedItem(targetVol.getDistrict());
+        JTextField locF = createTextField("e.g. Relief Camp Ward #5");
+        JComboBox<String> prioCombo = new JComboBox<>(new String[]{"Critical", "High", "Medium", "Low"});
+        JTextArea instArea = new JTextArea(3, 20);
+        instArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        instArea.setLineWrap(true);
+        instArea.setWrapStyleWord(true);
+        instArea.setText("Deploy with emergency team and maintain line-of-sight communications.");
 
         JPanel form = createFormGrid(
-                new String[]{"Volunteer Full Name:", "Skill / Specialty:", "Assigned Sector / Camp:", "Contact Phone:", "Deployment Status:"},
-                new JComponent[]{nameF, skillF, sectorF, phoneF, statusC}
+                new String[]{"Assigned Volunteer:", "Work / Mission Title:", "District / Sector:", "Specific Location:", "Operational Priority:", "Field Guidelines:"},
+                new JComponent[]{
+                        new JLabel(targetVol.getName() + " (ID #" + targetVol.getId() + " - " + targetVol.getSkill() + ")"),
+                        titleF, distCombo, locF, prioCombo, new JScrollPane(instArea)
+                }
+        );
+
+        int res = JOptionPane.showConfirmDialog(this, form, "Assign Disaster Deployment Work", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res == JOptionPane.OK_OPTION) {
+            String title = titleF.getText().trim();
+            if (title.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Mission title is required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            dataManager.assignTask(
+                    targetVol.getId(),
+                    targetVol.getName(),
+                    title,
+                    (String) distCombo.getSelectedItem(),
+                    locF.getText().trim(),
+                    (String) prioCombo.getSelectedItem(),
+                    instArea.getText().trim()
+            );
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "✓ FIELD WORK DIRECTIVE DISPATCHED!\n\n"
+                            + "Assigned Volunteer: " + targetVol.getName() + "\n"
+                            + "Mission: " + title + "\n"
+                            + "Sector: " + distCombo.getSelectedItem() + " - " + locF.getText().trim() + "\n\n"
+                            + "The volunteer can view this mission in their 'Assigned Works' window.",
+                    "Mission Assigned",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        }
+    }
+
+    private void showAddVolunteerDialog() {
+        JTextField nameF = createTextField("e.g. Sreekumar N.");
+        JTextField emailF = createTextField("e.g. sreekumar@gmail.com");
+        JTextField phoneF = createTextField("e.g. +91 94470 54321");
+        JComboBox<String> distC = new JComboBox<>(disaster.service.VolunteerSkillsData.KERALA_DISTRICTS);
+        JTextField skillF = createTextField("e.g. First Aid & Evacuation Support");
+        JComboBox<String> statusC = new JComboBox<>(new String[]{"Approved", "Active", "Deployed", "On Duty", "Pending"});
+
+        JPanel form = createFormGrid(
+                new String[]{"Volunteer Full Name:", "Email Address:", "Contact Phone:", "District:", "Skill / Specialty:", "Deployment Status:"},
+                new JComponent[]{nameF, emailF, phoneF, distC, skillF, statusC}
         );
 
         int res = JOptionPane.showConfirmDialog(this, form, "Add New Certified Volunteer", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -374,7 +603,23 @@ public class AdminFrame extends BaseFrame {
                 JOptionPane.showMessageDialog(this, "Volunteer name is required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            dataManager.addVolunteer(nameF.getText().trim(), skillF.getText().trim(), sectorF.getText().trim(), phoneF.getText().trim(), (String) statusC.getSelectedItem());
+            dataManager.addVolunteerApplication(
+                    nameF.getText().trim().toLowerCase().replaceAll("\\s+", "_"),
+                    nameF.getText().trim(),
+                    emailF.getText().trim(),
+                    phoneF.getText().trim(),
+                    (String) distC.getSelectedItem(),
+                    skillF.getText().trim(),
+                    "Admin Enrolled ID",
+                    "Admin Enrolled Cert"
+            );
+            if (!"Pending".equalsIgnoreCase((String) statusC.getSelectedItem())) {
+                List<Volunteer> all = dataManager.getVolunteers();
+                if (!all.isEmpty()) {
+                    all.get(all.size() - 1).setStatus((String) statusC.getSelectedItem());
+                }
+            }
+            refreshAllTables();
         }
     }
 
@@ -387,20 +632,31 @@ public class AdminFrame extends BaseFrame {
 
         int id = (int) volunteerModel.getValueAt(row, 0);
         JTextField nameF = createTextField(""); nameF.setText((String) volunteerModel.getValueAt(row, 1));
-        JTextField skillF = createTextField(""); skillF.setText((String) volunteerModel.getValueAt(row, 2));
-        JTextField sectorF = createTextField(""); sectorF.setText((String) volunteerModel.getValueAt(row, 3));
-        JTextField phoneF = createTextField(""); phoneF.setText((String) volunteerModel.getValueAt(row, 4));
-        JComboBox<String> statusC = new JComboBox<>(new String[]{"Deployed", "On Duty", "Active", "Standby"});
-        statusC.setSelectedItem(volunteerModel.getValueAt(row, 5));
+        JTextField emailF = createTextField(""); emailF.setText((String) volunteerModel.getValueAt(row, 2));
+        JTextField phoneF = createTextField(""); phoneF.setText((String) volunteerModel.getValueAt(row, 3));
+        JComboBox<String> distC = new JComboBox<>(disaster.service.VolunteerSkillsData.KERALA_DISTRICTS);
+        distC.setSelectedItem(volunteerModel.getValueAt(row, 4));
+        JTextField skillF = createTextField(""); skillF.setText((String) volunteerModel.getValueAt(row, 5));
+        JComboBox<String> statusC = new JComboBox<>(new String[]{"Approved", "Active", "Deployed", "On Duty", "Pending", "Rejected"});
+        statusC.setSelectedItem(volunteerModel.getValueAt(row, 8));
 
         JPanel form = createFormGrid(
-                new String[]{"Volunteer Full Name:", "Skill / Specialty:", "Assigned Sector / Camp:", "Contact Phone:", "Deployment Status:"},
-                new JComponent[]{nameF, skillF, sectorF, phoneF, statusC}
+                new String[]{"Volunteer Full Name:", "Email Address:", "Contact Phone:", "District:", "Skill / Specialty:", "Deployment Status:"},
+                new JComponent[]{nameF, emailF, phoneF, distC, skillF, statusC}
         );
 
         int res = JOptionPane.showConfirmDialog(this, form, "Re-edit Volunteer #" + id, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (res == JOptionPane.OK_OPTION) {
-            dataManager.updateVolunteer(id, nameF.getText().trim(), skillF.getText().trim(), sectorF.getText().trim(), phoneF.getText().trim(), (String) statusC.getSelectedItem());
+            Volunteer v = dataManager.getVolunteerById(id);
+            if (v != null) {
+                v.setName(nameF.getText().trim());
+                v.setEmail(emailF.getText().trim());
+                v.setPhone(phoneF.getText().trim());
+                v.setDistrict((String) distC.getSelectedItem());
+                v.setSkill(skillF.getText().trim());
+                v.setStatus((String) statusC.getSelectedItem());
+                refreshAllTables();
+            }
         }
     }
 
@@ -415,8 +671,10 @@ public class AdminFrame extends BaseFrame {
         int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to remove volunteer:\n" + name + " (ID #" + id + ")?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             dataManager.deleteVolunteer(id);
+            refreshAllTables();
         }
     }
+
 
     // =========================================================================
     // 3. INVENTORY PANEL
@@ -518,6 +776,147 @@ public class AdminFrame extends BaseFrame {
         int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete supply item:\n" + name + " (ID #" + id + ")?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             dataManager.deleteInventoryItem(id);
+        }
+    }
+
+    // =========================================================================
+    // EMERGENCY RECORDS PANEL (ADMIN RECORD SECTION)
+    // =========================================================================
+    private JPanel createEmergencyRecordsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(new EmptyBorder(12, 14, 12, 14));
+
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        toolbar.setOpaque(false);
+
+        JButton addBtn = button("Add New Record", UITheme.PRIMARY);
+        addBtn.setPreferredSize(new Dimension(160, 36));
+        addBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        addBtn.addActionListener(e -> showAddEmergencyRecordDialog());
+        toolbar.add(addBtn);
+
+        JButton editBtn = createOutlinedButton("Edit Selected Record", UITheme.HOTLINE_BLUE, UITheme.HOTLINE_BLUE);
+        editBtn.setPreferredSize(new Dimension(175, 36));
+        editBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        editBtn.addActionListener(e -> showEditEmergencyRecordDialog());
+        toolbar.add(editBtn);
+
+        JButton deleteBtn = createOutlinedButton("Delete Record", UITheme.BRAND_CRIMSON, UITheme.BRAND_CRIMSON);
+        deleteBtn.setPreferredSize(new Dimension(140, 36));
+        deleteBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        deleteBtn.addActionListener(e -> deleteSelectedEmergencyRecord());
+        toolbar.add(deleteBtn);
+
+        JButton openWindowBtn = createOutlinedButton("Open Directory Window", UITheme.BORDER_DARK, UITheme.TEXT);
+        openWindowBtn.setPreferredSize(new Dimension(185, 36));
+        openWindowBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        openWindowBtn.addActionListener(e -> new EmergencyContactsFrame(true).setVisible(true));
+        toolbar.add(openWindowBtn);
+
+        panel.add(toolbar, BorderLayout.NORTH);
+
+        String[] cols = {"Record ID", "Service / Response Wing", "Designated Department", "Emergency Hotline", "Operational Status"};
+        emergencyRecordsModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        emergencyRecordsTable = createStyledTable(emergencyRecordsModel);
+        panel.add(new JScrollPane(emergencyRecordsTable), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void showAddEmergencyRecordDialog() {
+        JTextField nameF = createTextField("");
+        JTextField deptF = createTextField("Disaster Rapid Response Desk");
+        JTextField phoneF = createTextField("");
+        JTextField statusF = createTextField("Live Connected");
+
+        JPanel form = createFormGrid(new String[]{
+                "Service / Contact Name:",
+                "Designated Department:",
+                "Emergency Hotline / Phone:",
+                "Operational Status:"
+        }, new JComponent[]{nameF, deptF, phoneF, statusF});
+
+        int res = JOptionPane.showConfirmDialog(this, form, "Add Emergency Record", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res == JOptionPane.OK_OPTION) {
+            String name = nameF.getText().trim();
+            String dept = deptF.getText().trim();
+            String phone = phoneF.getText().trim();
+            String status = statusF.getText().trim();
+            if (name.isEmpty() || phone.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Both Name and Phone are required.", "Input Required", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int uid = 1;
+            try { uid = Integer.parseInt(disaster.service.UserSession.getCurrentUser().getUserId()); } catch (Exception ignored) {}
+            new disaster.dao.EmergencyContactDAO().saveContact(uid, name, phone);
+            disaster.backend.DatabaseManager.getInstance().saveEmergencyContact(uid, name, phone);
+            refreshAllTables();
+            JOptionPane.showMessageDialog(this, "Emergency record added to database.", "Record Saved", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void showEditEmergencyRecordDialog() {
+        int row = emergencyRecordsTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Please select an emergency record from the table to edit.", "Select Row", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        String oldName = String.valueOf(emergencyRecordsModel.getValueAt(row, 1));
+        String oldDept = String.valueOf(emergencyRecordsModel.getValueAt(row, 2));
+        String oldPhone = String.valueOf(emergencyRecordsModel.getValueAt(row, 3));
+        String oldStatus = String.valueOf(emergencyRecordsModel.getValueAt(row, 4));
+
+        JTextField nameF = createTextField(""); nameF.setText(oldName);
+        JTextField deptF = createTextField(""); deptF.setText(oldDept);
+        JTextField phoneF = createTextField(""); phoneF.setText(oldPhone);
+        JTextField statusF = createTextField(""); statusF.setText(oldStatus);
+
+        JPanel form = createFormGrid(new String[]{
+                "Service / Contact Name:",
+                "Designated Department:",
+                "Emergency Hotline / Phone:",
+                "Operational Status:"
+        }, new JComponent[]{nameF, deptF, phoneF, statusF});
+
+        int res = JOptionPane.showConfirmDialog(this, form, "Re-edit Emergency Record: " + oldName, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res == JOptionPane.OK_OPTION) {
+            String newName = nameF.getText().trim();
+            String newDept = deptF.getText().trim();
+            String newPhone = phoneF.getText().trim();
+            String newStatus = statusF.getText().trim();
+            if (newName.isEmpty() || newPhone.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Both Name and Phone are required.", "Input Required", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            new disaster.dao.EmergencyContactDAO().updateContact(oldName, oldPhone, newName, newPhone);
+            disaster.backend.DatabaseManager.getInstance().updateEmergencyContact(oldName, oldPhone, newName, newPhone);
+            emergencyRecordsModel.setValueAt(newName, row, 1);
+            emergencyRecordsModel.setValueAt(newDept, row, 2);
+            emergencyRecordsModel.setValueAt(newPhone, row, 3);
+            emergencyRecordsModel.setValueAt(newStatus, row, 4);
+            JOptionPane.showMessageDialog(this, "Emergency record updated successfully.", "Record Updated", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void deleteSelectedEmergencyRecord() {
+        int row = emergencyRecordsTable.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Please select an emergency record to delete.", "Select Row", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        String name = String.valueOf(emergencyRecordsModel.getValueAt(row, 1));
+        String phone = String.valueOf(emergencyRecordsModel.getValueAt(row, 3));
+        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete emergency record:\n" + name + " (" + phone + ")?", "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            new disaster.dao.EmergencyContactDAO().deleteContact(name, phone);
+            disaster.backend.DatabaseManager.getInstance().deleteEmergencyContact(name, phone);
+            emergencyRecordsModel.removeRow(row);
+            JOptionPane.showMessageDialog(this, "Record deleted successfully.", "Record Removed", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -740,7 +1139,17 @@ public class AdminFrame extends BaseFrame {
         List<Volunteer> vols = dataManager.getVolunteers();
         volunteerModel.setRowCount(0);
         for (Volunteer v : vols) {
-            volunteerModel.addRow(new Object[]{v.getId(), v.getName(), v.getSkill(), v.getSector(), v.getPhone(), v.getStatus()});
+            volunteerModel.addRow(new Object[]{
+                    v.getId(),
+                    v.getName(),
+                    v.getEmail(),
+                    v.getPhone(),
+                    v.getDistrict(),
+                    v.getSkill(),
+                    v.getIdProofPath(),
+                    v.getCertificatePath(),
+                    v.getStatus()
+            });
         }
         volunteerKpiCount.setText(String.valueOf(vols.size()));
 
@@ -765,6 +1174,23 @@ public class AdminFrame extends BaseFrame {
         bulletinModel.setRowCount(0);
         for (GroundBulletin b : bulList) {
             bulletinModel.addRow(new Object[]{b.getId(), b.getTime(), b.getMessage(), b.getSeverity()});
+        }
+
+        // 6. Emergency Records
+        if (emergencyRecordsModel != null) {
+            emergencyRecordsModel.setRowCount(0);
+            emergencyRecordsModel.addRow(new Object[]{101, "National Emergency", "Central Integrated Desk", "112", "Live Connected"});
+            emergencyRecordsModel.addRow(new Object[]{102, "District Control Room", "District Disaster Management (DDMA)", "1077", "Live Connected"});
+            emergencyRecordsModel.addRow(new Object[]{103, "State Ops Center", "Kerala SDMA Unified Command", "1070", "Live Connected"});
+            emergencyRecordsModel.addRow(new Object[]{104, "Ambulance / Triage", "Emergency Health & Trauma Transit", "108", "Live Connected"});
+            emergencyRecordsModel.addRow(new Object[]{105, "Fire & Rescue Force", "Fire, Flood & Hazard Extrication", "101", "Live Connected"});
+            emergencyRecordsModel.addRow(new Object[]{106, "NDRF Special Command", "National Disaster Response Force", "011-24363260", "Live Connected"});
+            try {
+                List<disaster.backend.DatabaseManager.ContactEntry> dbContacts = disaster.backend.DatabaseManager.getInstance().getAllEmergencyContacts();
+                for (disaster.backend.DatabaseManager.ContactEntry c : dbContacts) {
+                    emergencyRecordsModel.addRow(new Object[]{c.contactId, c.contactName, "Personal Contact (User #" + c.userId + ")", c.contactPhone, "Saved in disaster_db"});
+                }
+            } catch (Exception ignored) {}
         }
     }
 

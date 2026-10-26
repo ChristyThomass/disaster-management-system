@@ -31,17 +31,12 @@ public class ProfileFrame extends BaseFrame {
         mainPanel.setBackground(UITheme.BACKGROUND);
         mainPanel.setBorder(new EmptyBorder(18, 22, 18, 22));
 
-        // Header Block
-        String badge = "VERIFIED RECORD";
-        if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
-            badge = "ROLE: " + disaster.service.UserSession.getCurrentUser().getUserType();
-        }
-
+        // Header Block (Role removed as requested)
         JPanel header = createStandardHeader(
                 "Personal Profile & Medical ID",
                 "Emergency triage details accessed by paramedics during evacuation",
-                badge,
-                UITheme.SUCCESS
+                null,
+                null
         );
         mainPanel.add(header, BorderLayout.NORTH);
 
@@ -61,19 +56,36 @@ public class ProfileFrame extends BaseFrame {
         if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
             disaster.model.User activeUser = disaster.service.UserSession.getCurrentUser();
             curName = activeUser.getUsername();
-            curEmail = activeUser.getEmail();
+            curEmail = disaster.backend.DatabaseManager.cleanEmail(activeUser.getEmail());
+            if (activeUser.getFullName() != null && !activeUser.getFullName().isEmpty()) curName = activeUser.getFullName();
+            if (activeUser.getPhone() != null && !activeUser.getPhone().isEmpty()) curPhone = activeUser.getPhone();
+            if (activeUser.getBloodGroup() != null && !activeUser.getBloodGroup().isEmpty()) curBlood = activeUser.getBloodGroup();
+            if (activeUser.getAddress() != null && !activeUser.getAddress().isEmpty()) curAddr = activeUser.getAddress();
             try { activeUserId = Integer.parseInt(activeUser.getUserId()); } catch (Exception ignored) {}
         }
 
-        // Load live profile details from disaster_db
-        disaster.model.User dbUser = disaster.backend.DatabaseManager.getInstance().getUserByUsername(curName);
-        if (dbUser != null) {
-            if (dbUser.getFullName() != null && !dbUser.getFullName().isEmpty()) curName = dbUser.getFullName();
-            if (dbUser.getPhone() != null && !dbUser.getPhone().isEmpty()) curPhone = dbUser.getPhone();
-            if (dbUser.getBloodGroup() != null && !dbUser.getBloodGroup().isEmpty()) curBlood = dbUser.getBloodGroup();
-            if (dbUser.getAddress() != null && !dbUser.getAddress().isEmpty()) curAddr = dbUser.getAddress();
-            try { activeUserId = Integer.parseInt(dbUser.getUserId()); } catch (Exception ignored) {}
-        }
+        // Load live profile details directly from disaster_db by activeUserId
+        try (java.sql.Connection conn = disaster.backend.DatabaseManager.getInstance().getConnection()) {
+            if (conn != null) {
+                String q = "SELECT u.username, u.phone, p.full_name, p.blood_group, p.address "
+                         + "FROM users u LEFT JOIN user_profiles p ON u.user_id = p.user_id WHERE u.user_id = ?";
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(q)) {
+                    ps.setInt(1, activeUserId);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            String fn = rs.getString("full_name");
+                            if (fn != null && !fn.trim().isEmpty()) curName = fn.trim();
+                            String ph = rs.getString("phone");
+                            if (ph != null && !ph.trim().isEmpty()) curPhone = ph.trim();
+                            String bg = rs.getString("blood_group");
+                            if (bg != null && !bg.trim().isEmpty()) curBlood = bg.trim();
+                            String ad = rs.getString("address");
+                            if (ad != null && !ad.trim().isEmpty()) curAddr = ad.trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
 
         // Row 1: Name & Blood Group
         JPanel row1 = new JPanel(new GridLayout(1, 2, 14, 0));
@@ -167,9 +179,10 @@ public class ProfileFrame extends BaseFrame {
             if (res == JOptionPane.YES_OPTION) {
                 disaster.service.UserSession.setCurrentUser(null);
                 if (DashboardFrame.getActiveInstance() != null) {
-                    DashboardFrame.getActiveInstance().updateSessionUser("Demo User");
+                    DashboardFrame.getActiveInstance().dispose();
                 }
                 dispose();
+                new LoginFrame().setVisible(true);
             }
         });
         bottom.add(signOutBtn, BorderLayout.WEST);
@@ -247,6 +260,14 @@ public class ProfileFrame extends BaseFrame {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+
+        if (disaster.service.UserSession.isLoggedIn() && disaster.service.UserSession.getCurrentUser() != null) {
+            disaster.model.User activeUser = disaster.service.UserSession.getCurrentUser();
+            activeUser.setFullName(name);
+            activeUser.setPhone(phone);
+            activeUser.setBloodGroup(blood);
+            activeUser.setAddress(addr);
         }
 
         String dbNotice = updated
